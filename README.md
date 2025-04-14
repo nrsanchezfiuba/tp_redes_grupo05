@@ -26,9 +26,3 @@ Si encuentra inconvenientes al ejecutar el ejecutable `./run_mininet.sh`, intent
 
 ## Requerimientos
 - Docker (versión 20.10 o superior)
-
-
-
-
-
-
