@@ -1,6 +1,6 @@
 import argparse
 
-from utils.client import Client
+from client.utils.client import Client
 
 
 def main() -> None:
