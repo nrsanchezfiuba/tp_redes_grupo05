@@ -12,12 +12,11 @@ run_docker() {
         -v "$XAUTHORITY":"$XAUTHORITY" \
         -v /tmp/.X11-unix:/tmp/.X11-unix \
         -v /lib/modules:/lib/modules \
-        -v "$(pwd)":/root \
         "$IMAGE_NAME" "$@"
 }
 
 if [ "$1" == "build" ]; then
-    docker build -t $IMAGE_NAME -f ./mininet/Dockerfile.mininet ./mininet/
+    docker build -t $IMAGE_NAME .
 elif [ "$1" == "run" ]; then
     export DISPLAY=':0'
     run_docker
