@@ -3,7 +3,7 @@ import argparse
 from utils.client import Client
 
 
-def main():
+def main() -> None:
     parser = argparse.ArgumentParser(
         description="Client to download files from a server.",
         usage="download [-h] [-v | -q] [-H ADDR] [-p PORT] [-d FILEPATH] [-n FILENAME] [-r protocol]",

@@ -1,5 +1,8 @@
+from argparse import Namespace
+
+
 class Client:
-    def __init__(self, args):
+    def __init__(self, args: Namespace) -> None:
         self.args = args
         self.host = args.host
         self.port = args.port
@@ -9,7 +12,7 @@ class Client:
         self.verbose = args.verbose
         self.quiet = args.quiet
 
-    def handle_download(self):
+    def handle_download(self) -> None:
         if self.verbose:
             print("Starting download with the following parameters:")
             print(f"Host: {self.host}")
@@ -25,7 +28,7 @@ class Client:
         # Add your download logic here
         print("Download complete.")
 
-    def handle_upload(self):
+    def handle_upload(self) -> None:
         if self.verbose:
             print("Starting upload with the following parameters:")
             print(f"Host: {self.host}")
