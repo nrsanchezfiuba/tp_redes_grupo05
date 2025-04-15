@@ -6,8 +6,8 @@ from mininet.node import OVSKernelSwitch
 from mininet.topo import Topo
 
 
-class MyTopo(Topo):
-    def build(self):
+class MyTopo(Topo):  # type: ignore
+    def build(self) -> None:
         # Crear switches
         s1 = self.addSwitch("s1")
         s2 = self.addSwitch("s2")
@@ -25,7 +25,7 @@ class MyTopo(Topo):
         self.addLink(s3, h2)
 
 
-def run():
+def run() -> None:
     topo = MyTopo()
     net = Mininet(
         topo=topo,
