@@ -2,3 +2,4 @@
 coverage.xml
 .bash_history
 .mininet_history
+uv.lock
