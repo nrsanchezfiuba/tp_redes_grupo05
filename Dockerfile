@@ -4,7 +4,6 @@ USER root
 WORKDIR /root
 
 COPY ./mininet/ENTRYPOINT.sh /
-COPY . /root
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates \
@@ -27,7 +26,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && chmod +x /ENTRYPOINT.sh \
     && curl -LsSf https://astral.sh/uv/install.sh | sh
 
+COPY . /root
+
 ENV PATH="/root/.local/bin:${PATH}"
+ENV PYTHONPATH=src
 
 EXPOSE 6633 6653 6640
 
