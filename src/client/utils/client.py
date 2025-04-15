@@ -9,9 +9,6 @@ class Client:
         self.verbose = args.verbose
         self.quiet = args.quiet
 
-    def run(self):
-        self.handle_download()
-
     def handle_download(self):
         if self.verbose:
             print("Starting download with the following parameters:")
@@ -27,3 +24,16 @@ class Client:
 
         # Add your download logic here
         print("Download complete.")
+
+    def handle_upload(self):
+        if self.verbose:
+            print("Starting upload with the following parameters:")
+            print(f"Host: {self.host}")
+            print(f"Port: {self.port}")
+            print(f"Source Path: {self.dst}")
+            print(f"File Name: {self.name}")
+            print(f"Protocol: {self.protocol}")
+        elif self.quiet:
+            pass
+        else:
+            print("Uploading file...")

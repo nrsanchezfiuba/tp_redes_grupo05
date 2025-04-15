@@ -2,8 +2,6 @@ import argparse
 
 from utils.client import Client
 
-#!/usr/bin/env python3
-
 
 def main():
     parser = argparse.ArgumentParser(
@@ -40,7 +38,7 @@ def main():
     args = parser.parse_args()
 
     client = Client(args)
-    client.run()
+    client.handle_download()
 
 
 if __name__ == "__main__":
