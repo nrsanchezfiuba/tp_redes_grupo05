@@ -2,3 +2,5 @@
 coverage.xml
 .bash_history
 .mininet_history
+__pycache__/
+**/__pycache__/
