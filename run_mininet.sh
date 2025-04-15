@@ -5,6 +5,7 @@ IMAGE_NAME="mininet_img"
 export XAUTHORITY=$HOME/.Xauthority
 
 run_docker() {
+    [ -d .venv ] && rm -rf .venv # Remove pre-existing local .venv
     shift
     docker run -it --rm --privileged --net=host \
         -e DISPLAY="$DISPLAY" \
@@ -13,7 +14,9 @@ run_docker() {
         -v /tmp/.X11-unix:/tmp/.X11-unix \
         -v /lib/modules:/lib/modules \
         -v "$(pwd)":/root/project \
+        --tmpfs /root/project/.venv \
         "$IMAGE_NAME" "$@"
+    [ -d .venv ] && rm -rf .venv # Remove newly-created tmp .venv
 }
 
 if [ "$1" == "build" ]; then
