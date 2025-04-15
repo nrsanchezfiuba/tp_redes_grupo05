@@ -12,7 +12,7 @@ run_docker() {
         -v "$XAUTHORITY":"$XAUTHORITY" \
         -v /tmp/.X11-unix:/tmp/.X11-unix \
         -v /lib/modules:/lib/modules \
-        -v "$(pwd)":/root \
+        -v "$(pwd)":/root/project \
         "$IMAGE_NAME" "$@"
 }
 
