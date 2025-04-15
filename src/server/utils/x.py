@@ -1,2 +1,2 @@
-def get_server():
+def get_server() -> str:
     return "server"

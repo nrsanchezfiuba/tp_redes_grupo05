@@ -1,2 +1,2 @@
-def get_client():
+def get_client() -> str:
     return "client"
