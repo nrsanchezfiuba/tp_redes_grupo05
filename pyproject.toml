@@ -5,12 +5,8 @@ description = "TP1"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
-    "black>=25.1.0",
-    "mininet>=2.3.0.dev6",
-    "mypy>=1.15.0",
     "pytest",
     "pytest-cov>=6.1.1",
-    "tool>=0.8.0",
 ]
 
 [tool.setuptools]
