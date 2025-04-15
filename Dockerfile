@@ -3,7 +3,8 @@ FROM ubuntu:22.04
 USER root
 WORKDIR /root
 
-COPY ENTRYPOINT.sh /
+COPY ./mininet/ENTRYPOINT.sh /
+COPY . /root
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates \
