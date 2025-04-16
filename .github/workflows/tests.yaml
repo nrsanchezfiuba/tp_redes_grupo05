@@ -39,4 +39,4 @@ jobs:
       - name: Run tests with pytest
         run: |
           source .venv/bin/activate
-          PYTHONPATH=src pytest --cov=src
+          PYTHONPATH=src pytest --cov=src --cov-fail-under=75

@@ -3,9 +3,11 @@ FROM ubuntu:22.04
 USER root
 WORKDIR /root
 
-COPY ENTRYPOINT.sh /
+COPY ./mininet/ENTRYPOINT.sh /
+COPY . /root
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
+    ca-certificates \
     curl \
     dnsutils \
     ifupdown \
@@ -22,7 +24,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     xterm \
     && rm -rf /var/lib/apt/lists/* \
     && touch /etc/network/interfaces \
-    && chmod +x /ENTRYPOINT.sh
+    && chmod +x /ENTRYPOINT.sh \
+    && curl -LsSf https://astral.sh/uv/install.sh | sh
+
+ENV PATH="/root/.local/bin:${PATH}"
 
 EXPOSE 6633 6653 6640
 

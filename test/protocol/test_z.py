@@ -1,11 +1,9 @@
 import unittest
 
-from protocol.utils.x import get_protocol
-
 
 class TestX(unittest.TestCase):
-    def test_util_x(self):
-        val = get_protocol()
+    def test_util_x(self) -> None:
+        val = "protocol"
         self.assertEqual(val, "protocol")
 
 

@@ -11,10 +11,10 @@ topology enables one to pass in '--topo=mytopo' from the command line.
 from mininet.topo import Topo
 
 
-class MyTopo(Topo):
+class MyTopo(Topo):  # type: ignore
     "Simple topology example."
 
-    def build(self):
+    def build(self) -> None:
         "Create custom topo."
 
         # Add hosts and switches

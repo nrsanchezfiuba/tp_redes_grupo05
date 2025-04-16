@@ -2,7 +2,7 @@ import unittest
 
 
 class TestX(unittest.TestCase):
-    def test_util_x(self):
+    def test_util_x(self) -> None:
         val = "client"
         self.assertEqual(val, "client")
 

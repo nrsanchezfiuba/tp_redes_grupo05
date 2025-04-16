@@ -1,4 +1,5 @@
 #!/bin/bash
 
-# Set the PYTHONPATH and run pytest with coverage
-PYTHONPATH=src pytest --cov=src
+source .venv/bin/activate
+
+PYTHONPATH=src pytest --cov=src --cov-fail-under=75

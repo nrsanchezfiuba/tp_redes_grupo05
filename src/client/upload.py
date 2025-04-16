@@ -1,9 +1,9 @@
 import argparse
 
-from utils.client import Client
+from client.utils.client import Client
 
 
-def main():
+def main() -> None:
     parser = argparse.ArgumentParser(
         description="Client to upload files from a server.",
         usage="upload [-h] [-v | -q] [-H ADDR] [-p PORT] [-d FILEPATH] [-n FILENAME] [-r protocol]",
