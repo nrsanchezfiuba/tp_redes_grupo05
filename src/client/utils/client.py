@@ -3,14 +3,14 @@ from argparse import Namespace
 
 class Client:
     def __init__(self, args: Namespace) -> None:
-        self.args = args
-        self.host = args.host
-        self.port = args.port
-        self.dst = args.dst
-        self.name = args.name
-        self.protocol = args.protocol
-        self.verbose = args.verbose
-        self.quiet = args.quiet
+        self.args: Namespace = args
+        self.host: str = args.host
+        self.port: int = args.port
+        self.dst: str = args.dst
+        self.name: str = args.name
+        self.protocol: str = args.protocol
+        self.verbose: bool = args.verbose
+        self.quiet: bool = args.quiet
 
     def handle_download(self) -> None:
         if self.verbose:
