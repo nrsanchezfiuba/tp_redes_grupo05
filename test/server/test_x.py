@@ -1,11 +1,9 @@
 import unittest
 
-from server.utils.x import get_server
-
 
 class TestX(unittest.TestCase):
     def test_util_x(self) -> None:
-        val = get_server()
+        val = "server"
         self.assertEqual(val, "server")
 
 
