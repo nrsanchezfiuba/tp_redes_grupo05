@@ -6,7 +6,8 @@ from client.download import main
 
 
 class TestDownloadMain(unittest.TestCase):
-    @mock.patch("client.download.Client")  # Mock the Client class inside download.py
+    # Mock the Client class inside download.py
+    @mock.patch("client.download.Client")
     def test_main_with_arguments(self, mock_client_class: mock.MagicMock) -> None:
         # Arrange
         test_args = [
@@ -30,17 +31,17 @@ class TestDownloadMain(unittest.TestCase):
 
             # Assert
             mock_client_class.assert_called_once()  # Client should be instantiated
-            mock_client_instance.handle_download.assert_called_once()  # handle_download should be called
+            # handle_download should be called
+            mock_client_instance.handle_download.assert_called_once()
 
     @mock.patch("client.download.Client")
     def test_main_missing_argument(self, mock_client_class: mock.MagicMock) -> None:
         # Arrange
         test_args = [
             "download.py",
-            "-H",
-            "127.0.0.1",
-            # Missing port argument
-            "-d",
+            # Missing host argument
+            "-p",
+            "8080-d",
             "/tmp",
             "-n",
             "testfile.txt",

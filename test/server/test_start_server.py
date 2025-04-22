@@ -2,7 +2,8 @@ import sys
 import unittest
 from unittest import mock
 
-from server.start_server import main  # Import the main function from start_server.py
+# Import the main function from start_server.py
+from server.start_server import main
 
 
 class TestServerMain(unittest.TestCase):
@@ -17,8 +18,6 @@ class TestServerMain(unittest.TestCase):
             "8080",
             "-s",
             "/tmp",
-            "-n",
-            "testfile.txt",
             "-r",
             "GBN",
         ]
@@ -43,8 +42,6 @@ class TestServerMain(unittest.TestCase):
             "8080",
             "-s",
             "/tmp",
-            "-n",
-            "testfile.txt",
         ]  # Missing -H (host)
 
         with mock.patch.object(sys, "argv", test_args):
