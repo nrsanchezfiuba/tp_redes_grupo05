@@ -1,4 +1,4 @@
-from typing import Any, cast
+from typing import Any, Dict, cast
 
 from mininet.cli import CLI
 from mininet.log import setLogLevel
@@ -7,20 +7,20 @@ from mininet.node import Node
 from mininet.topo import Topo
 
 
-class LinuxRouter(Node):
-    def config(self, *args: Any, **kwargs: Any) -> dict:
-        result = super().config(*args, **kwargs)
+class Router(Node):  # type: ignore
+    def config(self, *args: Any, **kwargs: Any) -> Dict[str, Any]:
+        result = cast(Dict[str, Any], super().config(*args, **kwargs))
         self.cmd("sysctl -w net.ipv4.ip_forward=1")
         return result
 
-    def terminate(self):
+    def terminate(self) -> None:
         self.cmd("sysctl -w net.ipv4.ip_forward=0")
         super().terminate()
 
 
-class FragmentationTopo(Topo):
-    def build(self, **_opts):
-        r1 = self.addNode("r1", cls=LinuxRouter, ip=None)
+class FragmentationTopo(Topo):  # type: ignore
+    def build(self, **_opts: Any) -> None:
+        r1 = self.addNode("r1", cls=Router, ip=None)
         s1, s2 = [self.addSwitch(s) for s in ("s1", "s2")]
 
         self.addLink(s1, r1, intfName2="r1-eth1", params2={"ip": "10.0.0.1/30"})
@@ -33,7 +33,7 @@ class FragmentationTopo(Topo):
             self.addLink(h, s)
 
 
-def run():
+def run() -> None:
     topo = FragmentationTopo()
     net = Mininet(topo=topo)
     net.start()
