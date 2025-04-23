@@ -6,7 +6,7 @@ from server.utils.server import Server
 def main() -> None:
     parser = argparse.ArgumentParser(
         description="Server initialization",
-        usage="start_server [-h] [-v | -q] [-H ADDR] [-p PORT] [-s DIRPATH] [-n FILENAME] [-r protocol]",
+        usage="start_server [-h] [-v | -q] [-H ADDR] [-p PORT] [-s DIRPATH] [-r protocol]",
     )
     parser.add_argument(
         "-v ", "--verbose", action="store_true", help="increase output verbosity"
@@ -21,10 +21,7 @@ def main() -> None:
         "-p", "--port", type=int, required=True, metavar="", help="server port"
     )
     parser.add_argument(
-        "-s", "--storage", type=str, required=True, metavar="", help="storage dir path"
-    )
-    parser.add_argument(
-        "-n", "--name", type=str, required=True, metavar="", help="file name"
+        "-s", "--storage", type=str, metavar="", help="storage dir path"
     )
     parser.add_argument(
         "-r",
