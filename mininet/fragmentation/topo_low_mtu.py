@@ -1,9 +1,10 @@
+from typing import Any, cast
+
 from mininet.cli import CLI
 from mininet.log import setLogLevel
 from mininet.net import Mininet
 from mininet.node import Node
 from mininet.topo import Topo
-from typing import Any, cast
 
 
 class LinuxRouter(Node):
@@ -22,10 +23,8 @@ class FragmentationTopo(Topo):
         r1 = self.addNode("r1", cls=LinuxRouter, ip=None)
         s1, s2 = [self.addSwitch(s) for s in ("s1", "s2")]
 
-        self.addLink(s1, r1, intfName2="r1-eth1",
-                     params2={"ip": "10.0.0.1/30"})
-        self.addLink(s2, r1, intfName2="r1-eth2",
-                     params2={"ip": "10.0.0.5/30"})
+        self.addLink(s1, r1, intfName2="r1-eth1", params2={"ip": "10.0.0.1/30"})
+        self.addLink(s2, r1, intfName2="r1-eth2", params2={"ip": "10.0.0.5/30"})
 
         h1 = self.addHost("h1", ip="10.0.0.2/30", defaultRoute="via 10.0.0.1")
         h2 = self.addHost("h2", ip="10.0.0.6/30", defaultRoute="via 10.0.0.5")
