@@ -6,6 +6,7 @@ readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
     "pytest",
+    "asyncio",
     "pytest-cov>=6.1.1",
 ]
 
