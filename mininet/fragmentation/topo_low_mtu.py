@@ -25,6 +25,8 @@ class FragmentationTopo(Topo):  # type: ignore
 
         self.addLink(s1, r1, intfName2="r1-eth1", params2={"ip": "10.0.0.1/30"})
         self.addLink(s2, r1, intfName2="r1-eth2", params2={"ip": "10.0.0.5/30"})
+        # TODO: add packet loss
+        # self.addLink(sx, sx, cls=TCLink, loss=10)
 
         h1 = self.addHost("h1", ip="10.0.0.2/30", defaultRoute="via 10.0.0.1")
         h2 = self.addHost("h2", ip="10.0.0.6/30", defaultRoute="via 10.0.0.5")
