@@ -51,14 +51,16 @@ class Server:
             print("Starting server...")
 
         loop = asyncio.get_event_loop()
+
         try:
             loop.run_until_complete(self.start_server())
         except KeyboardInterrupt:
             print("\n[Server] Stopping server...")
-            tasks = asyncio.all_tasks(loop=loop)
+
+            tasks = [t for t in asyncio.all_tasks(loop=loop) if not t.done()]
             for task in tasks:
-                if task is not asyncio.current_task():
-                    task.cancel()
+                task.cancel()
+
             loop.run_until_complete(asyncio.gather(*tasks, return_exceptions=True))
         finally:
             loop.run_until_complete(loop.shutdown_asyncgens())
