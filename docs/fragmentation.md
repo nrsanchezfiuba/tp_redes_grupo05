@@ -3,7 +3,7 @@
 Se confecciono un *script de python* que inicializa una topologia con
 dos hosts, dos switches y un nodo central tomando el rol de Router.
 Para esto se configura al nodo para que pueda hacer ip-forwarding (esto lo hara comportarse
-como router).
+como router). A su vez el *link* entre el router y el segundo switch tiene un packet loss de 10%.
 
 La asignacion de ips internas que estan en el script se hizo con las ips justas y necesarias
 para las dos subnets (1 host + 1 router-itf + 1 ip red + ip broadcast,
