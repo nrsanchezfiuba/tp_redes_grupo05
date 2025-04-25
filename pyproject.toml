@@ -8,6 +8,7 @@ dependencies = [
     "mininet>=2.3.0.dev6",
     "pytest",
     "pytest-cov>=6.1.1",
+    "asyncio",
 ]
 
 [tool.setuptools]
@@ -15,6 +16,10 @@ package-dir = {"" = "src"}
 
 [tool.setuptools.packages.find]
 where = ["src"]
+
+[tool.mypy]
+python_version = "3.12"
+mypy_path = "src"
 
 [[tool.mypy.overrides]]
 module = ["mininet.*"]

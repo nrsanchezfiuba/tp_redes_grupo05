@@ -26,3 +26,21 @@ Si encuentra inconvenientes al ejecutar el ejecutable `./run_mininet.sh`, intent
 
 ## Requerimientos
 - Docker (versión 20.10 o superior)
+
+## Testing
+
+### Preparación del Entorno
+1. Active el entorno virtual:
+    ```bash
+    source .venv/bin/activate
+    ```
+
+### Ejecución de Pruebas
+2. Ejecute el script de pruebas:
+    ```bash
+    ./run_tests.sh
+    ```
+
+### Notas
+- Asegúrese de que todas las dependencias estén instaladas antes de ejecutar las pruebas.
+- Si encuentra problemas, verifique los permisos o la configuración del entorno virtual.
