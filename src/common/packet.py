@@ -1,5 +1,4 @@
 import struct
-from ctypes import c_uint16
 from enum import Enum
 from typing import NamedTuple
 
@@ -8,17 +7,18 @@ HEADER_PACK_FORMAT: str = "!HHH"  # Big-endian unsigned short (2 bytes)
 
 class HeaderMasks(Enum):
     PROTOCOLTYPE = 0xC000  # 1100_0000_0000_0000
-    MODE = 0x2000
+    MODE = 0x2000  # 0010_0000_0000_0000
     SYN = 0x1000  # 0001_0000_0000_0000
-    FIN = 0x0800
+    FIN = 0x0800  # 0000_1000_0000_0000
     ACK = 0x0400  # 0000_0100_0000_0000
-    LEN = 0x03FF  # 0011_1111_1111
+    LEN = 0x03FF  # 0000_0011_1111_1111
 
 
 class HeaderFlags(Enum):
     STOP_WAIT = 0x0000
     GBN = 0x4000
-    MODE = 0x2000
+    UPLOAD = 0x2000
+    DOWNLOAD = 0x0000
     SYN = 0x1000
     FIN = 0x0800
     ACK = 0x0400
@@ -26,10 +26,18 @@ class HeaderFlags(Enum):
 
 # TODO: Change types to int
 class HeaderData(NamedTuple):
-    flags: c_uint16  # 6 bits
-    length: c_uint16  # 10 bits
-    seq_number: c_uint16  # 16 bits
-    ACK_number: c_uint16  # 16 bits
+    """
+    Represents a header of 6 bytes that includes:
+    - flags: 6 bits
+    - length: 10 bits
+    - seq_number: 16 bits
+    - ACK_number: 16 bits
+    """
+
+    flags: int
+    length: int
+    seq_number: int
+    ack_number: int
 
 
 # TODO: Update the methods documentation
@@ -37,14 +45,7 @@ class Packet:
     @classmethod
     def from_bytes(cls, packet: bytes) -> "Packet":
         """
-        Unpacks a received packet to separate the header fields and the data.
-
-        Args:
-            packet (bytes): The received packet.
-
-        Returns:
-            Tuple[HeaderData, bytes]: A tuple containing a HeaderData namedtuple
-                                    with the header fields and the data as bytes.
+        Creates a Packet instance from a byte array (from network).
         """
         if len(packet) < 6:
             raise ValueError("Packet too short to contain a header.")
@@ -55,59 +56,74 @@ class Packet:
             HEADER_PACK_FORMAT, packet[:6]
         )
 
-        flags = c_uint16(flags_and_length & (~HeaderMasks.LEN.value))
-        length = c_uint16(flags_and_length & HeaderMasks.LEN.value)
+        flags = flags_and_length & (~HeaderMasks.LEN.value)
+        length = flags_and_length & HeaderMasks.LEN.value
 
-        header_data = HeaderData(
-            flags=flags,
-            length=length,
-            seq_number=c_uint16(seq_num),
-            ACK_number=c_uint16(ack_num),
-        )
-
-        return cls(header_data, data)
-
-    def __init__(self, header_data: HeaderData, data: bytes) -> None:
-        self.header_data = header_data
-        self.data = data
+        return cls(seq_num, ack_num, data, flags=flags, length=length)
 
     def to_bytes(self) -> bytes:
         """
-        Packs the data with a custom header.
-
-        Args:
-            flags (int): The flags to set in the header.
-            seq_number (int): The sequence number.
-            ack_number (int): The acknowledgment number.
-            data (bytes): The data to send.
-
-        Returns:
-            bytes: The complete packet with the header and data.
+        Coverts Self to bytes (ready to send over network).
         """
 
-        # Insert Length of the data
         data_len: int = len(self.data)
-        if (
-            data_len > HeaderMasks.LEN.value
-        ):  # Ensure the length does not exceed the LEN field size (10 bits)
-            raise ValueError(
-                "Data length exceeds the maximum size of the LEN field (10 bits)."
-            )
+        if data_len > HeaderMasks.LEN.value:
+            raise ValueError("Data exceeds the maximum size [2^10B].")
 
-        flags_and_length: c_uint16 = c_uint16(
-            (int.from_bytes(self.header_data.flags) | data_len)
-        )
+        flags_and_length = self.header_data.flags | data_len
 
-        # Pack the header (by 2 bytes per field)
+        # Pack the header in 6 bytes
         packed_header: bytes = struct.pack(
             HEADER_PACK_FORMAT,
-            int.from_bytes(flags_and_length),
-            int.from_bytes(self.header_data.seq_number),
-            int.from_bytes(self.header_data.ACK_number),
+            flags_and_length,
+            self.header_data.seq_number,
+            self.header_data.ack_number,
         )
 
         # Return the header followed by the data
         return packed_header + self.data
 
+    def __init__(
+        self, seq_num: int, ack_num: int, data: bytes, flags: int = 0, length: int = 0
+    ) -> None:
+        self.header_data = HeaderData(
+            flags=flags,
+            length=length if length else len(data),
+            seq_number=seq_num,
+            ack_number=ack_num,
+        )
+        self.data = data
+
+    def __repr__(self) -> str:
+        return (
+            f"Packet(flags={hex(self.header_data.flags)}, "
+            f"length={self.header_data.length}, "
+            f"seq_num={self.header_data.seq_number}, "
+            f"ack_num={self.header_data.ack_number}, "
+            f"data={self.data!r})"
+        )
+
+    def is_syn(self) -> bool:
+        return bool(self.header_data.flags & HeaderMasks.SYN.value)
+
+    def is_fin(self) -> bool:
+        return bool(self.header_data.flags & HeaderMasks.FIN.value)
+
     def is_ack(self) -> bool:
-        return bool(self.header_data.flags.value & HeaderMasks.ACK.value)
+        return bool(self.header_data.flags & HeaderMasks.ACK.value)
+
+    def get_mode(self) -> HeaderFlags:
+        return HeaderFlags(self.header_data.flags & HeaderMasks.MODE.value)
+
+    def get_protocol_type(self) -> HeaderFlags:
+        return HeaderFlags(self.header_data.flags & HeaderMasks.PROTOCOLTYPE.value)
+
+
+if __name__ == "__main__":
+    # Example
+    packet = Packet(1, 2, b"Hello", flags=HeaderFlags.SYN.value)
+    print(packet)
+    packed = packet.to_bytes()
+    print(f"Packed: {packed!r}")
+    unpacked_packet = Packet.from_bytes(packed)
+    print(unpacked_packet)
