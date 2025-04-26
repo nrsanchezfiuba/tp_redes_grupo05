@@ -2,8 +2,8 @@ import asyncio
 import os
 from argparse import Namespace
 
-from common.packet import HeaderFlags, Packet
-from common.udp_socket import UDPSocket
+from common.socket.packet import HeaderFlags, Packet
+from common.socket.udp_socket import UDPSocket
 
 
 class Server:
@@ -42,7 +42,7 @@ class Server:
 
             response = Packet(
                 seq_num=length,
-                ack_num=length + client_data.header_data.seq_number,
+                ack_num=length + client_data.get_seq_num(),
                 data=b"ACK",
                 flags=HeaderFlags.ACK.value,
             )

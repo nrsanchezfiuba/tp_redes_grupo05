@@ -3,7 +3,6 @@ from typing import Optional, Tuple
 
 
 class UDPSocket(asyncio.DatagramProtocol):
-
     def __init__(self) -> None:
         """
         Attributes:
