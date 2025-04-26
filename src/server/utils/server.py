@@ -2,6 +2,7 @@ import asyncio
 import os
 from argparse import Namespace
 
+from common.packet import HeaderFlags, Packet
 from common.udp_socket import UDPSocket
 
 
@@ -35,8 +36,18 @@ class Server:
             if self.verbose:
                 print(f"Received {len(data)} bytes from {addr}")
 
-            response = f"OKA - {data.decode()}"
-            self.socket.send_all(response.encode(), addr)
+            client_data = Packet.from_bytes(data)
+            print(repr(client_data))
+            length = client_data.header_data.length
+
+            response = Packet(
+                seq_num=length,
+                ack_num=length + client_data.header_data.seq_number,
+                data=b"ACK",
+                flags=HeaderFlags.ACK.value,
+            )
+
+            self.socket.send_all(response.to_bytes(), addr)
 
     def run(self) -> None:
         if self.verbose:

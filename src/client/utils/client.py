@@ -3,6 +3,7 @@ import os
 from argparse import Namespace
 
 from client.utils.client_protocol import ClientProtocol
+from common.packet import HeaderFlags, Packet
 
 
 class Client:
@@ -35,15 +36,27 @@ class Client:
 
         try:
             for i in range(5):
-                message = f"Test message {i + 1}".encode()
+                message = Packet(
+                    seq_num=i,
+                    ack_num=0,
+                    data=f"Hello {i}".encode(),
+                    flags=HeaderFlags.SYN.value,
+                )
+
                 if self.verbose:
-                    print(f"[Client] Sending: {message.decode()}")
-                transport.sendto(message)
+                    print(f"[Client] Sending: {repr(message)}")
+                    print(
+                        f"[Client] Sending bytes: {message.to_bytes().decode('utf-8', errors='replace')}"
+                    )
+
+                transport.sendto(message.to_bytes())
 
                 # Wait to receive a response BEFORE sending the next message
                 try:
                     data, addr = await asyncio.wait_for(protocol.recv(), timeout=2.0)
-                    print(f"[Client] Received response: {data.decode()} from {addr}")
+                    print(
+                        f"[Client] Received response: {Packet.from_bytes(data)} from {addr}"
+                    )
                 except asyncio.TimeoutError:
                     print("[Client] No response received (timeout)")
                     break
