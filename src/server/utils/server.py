@@ -2,6 +2,7 @@ import asyncio
 import os
 from argparse import Namespace
 
+from common.packet import HeaderFlags, Packet
 from common.udp_socket import UDPSocket
 
 
@@ -35,8 +36,18 @@ class Server:
             if self.verbose:
                 print(f"Received {len(data)} bytes from {addr}")
 
-            response = f"OKA - {data.decode()}"
-            self.socket.send_all(response.encode(), addr)
+            client_data = Packet.from_bytes(data)
+            print(repr(client_data))
+            length = client_data.header_data.length
+
+            response = Packet(
+                seq_num=length,
+                ack_num=length + client_data.header_data.seq_number,
+                data=b"ACK",
+                flags=HeaderFlags.ACK.value,
+            )
+
+            self.socket.send_all(response.to_bytes(), addr)
 
     def run(self) -> None:
         if self.verbose:
@@ -51,14 +62,16 @@ class Server:
             print("Starting server...")
 
         loop = asyncio.get_event_loop()
+
         try:
             loop.run_until_complete(self.start_server())
         except KeyboardInterrupt:
             print("\n[Server] Stopping server...")
-            tasks = asyncio.all_tasks(loop=loop)
+
+            tasks = [t for t in asyncio.all_tasks(loop=loop) if not t.done()]
             for task in tasks:
-                if task is not asyncio.current_task():
-                    task.cancel()
+                task.cancel()
+
             loop.run_until_complete(asyncio.gather(*tasks, return_exceptions=True))
         finally:
             loop.run_until_complete(loop.shutdown_asyncgens())
