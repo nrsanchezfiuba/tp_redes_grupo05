@@ -1,32 +1,30 @@
 import asyncio
 
-from common.packet import HeaderFlags, Packet
 from common.protocol.protocol import BLOCK_SIZE, Protocol
-from common.udp_socket import UDPSocket
+from common.socket.connection_socket import ConnectionSocket
+from common.socket.packet import HeaderFlags, Packet
 
 TIMEOUT_END_CONECTION: float = 5
 
 
 class StopAndWait(Protocol):
-    def __init__(self, socket: UDPSocket):
+    def __init__(self, socket: ConnectionSocket):
         super().__init__(socket)
 
     async def recv_file(self, name: str, filepath: str, mode: int) -> None:
         try:
             while True:
-                response, sender = await asyncio.wait_for(
-                    self.socket.recv_all(), TIMEOUT_END_CONECTION
+                recv_pkt = await asyncio.wait_for(
+                    self.socket.recv(), TIMEOUT_END_CONECTION
                 )
-                recv_packet = Packet.from_bytes(response)
 
-                while not recv_packet.header_data.length:
-                    response, sender = await asyncio.wait_for(
-                        self.socket.recv_all(), TIMEOUT_END_CONECTION
+                while not recv_pkt.header_data.length:
+                    recv_pkt = await asyncio.wait_for(
+                        self.socket.recv(), TIMEOUT_END_CONECTION
                     )
-                    recv_packet = Packet.from_bytes(response)
 
-                self.save_data(response, filepath)
-                await self.socket.send_all(Packet.for_ack(0, 0).to_bytes(), ("0", 0))
+                self.save_data(recv_pkt.get_data(), filepath)
+                await self.socket.send(Packet.for_ack(0, 0))
         except asyncio.TimeoutError:
             # TODO vervose mode end conection
             return
@@ -51,7 +49,7 @@ class StopAndWait(Protocol):
                     )
 
                 while retry_count < max_retries:
-                    if await self.send_and_wait_ack(packet, timeout=1.0):
+                    if await self._send_and_wait_ack(packet, timeout=1.0):
                         break  # ACK recibido
                     retry_count += 1
 
@@ -60,21 +58,15 @@ class StopAndWait(Protocol):
         except Exception as e:
             raise RuntimeError(f"Error inesperado: {e}")
 
-    async def send_and_wait_ack(self, packet: Packet, timeout: float = 1.0) -> bool:
-        await self.socket.send_all(packet.to_bytes(), ("0", 0))
+    async def _send_and_wait_ack(self, packet: Packet, timeout: float = 1.0) -> bool:
+        await self.socket.send(packet)
 
         try:
-            response, sender = await asyncio.wait_for(
-                self.socket.recv_all(), timeout=timeout
-            )
-            recv_packet: Packet = Packet.from_bytes(response)
+            recv_pkt = await asyncio.wait_for(self.socket.recv(), timeout=timeout)
 
             # If not ACK, keep waiting (with timeout)
-            while not recv_packet.is_ack():
-                response, sender = await asyncio.wait_for(
-                    self.socket.recv_all(), timeout=timeout
-                )
-                recv_packet = Packet.from_bytes(response)
+            while not recv_pkt.is_ack():
+                recv_pkt = await asyncio.wait_for(self.socket.recv(), timeout=timeout)
 
             return True  # ACK received
 

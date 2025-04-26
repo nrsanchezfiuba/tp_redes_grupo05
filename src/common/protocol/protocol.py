@@ -1,12 +1,12 @@
 from abc import ABC, abstractmethod
 
-from common.udp_socket import UDPSocket
+from common.socket.connection_socket import ConnectionSocket
 
 BLOCK_SIZE = 1000
 
 
 class Protocol(ABC):
-    def __init__(self, socket: UDPSocket):
+    def __init__(self, socket: ConnectionSocket):
         self.socket = socket
 
     @staticmethod

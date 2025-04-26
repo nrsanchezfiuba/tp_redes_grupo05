@@ -50,12 +50,12 @@ class Socket:
         # await for SYN ACK
         _, _ = await self.udp_skt.recv_all()
 
-    def send(self, data: bytes) -> None:
+    def send(self, packet: Packet) -> None:
         # TODO handle packet logic
         # Increment seq num, ack num
         pass
 
-    def recv(self, bufsize: int) -> bytes:
+    def recv(self) -> Packet:
         # TODO handle packet logic
         # Increment seq num, ack num
-        return b""
+        return Packet()
