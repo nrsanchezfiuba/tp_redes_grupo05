@@ -132,6 +132,9 @@ class Packet:
     def get_seq_num(self) -> int:
         return self.header_data.seq_num
 
+    def get_data(self) -> bytes:
+        return self.data
+
 
 if __name__ == "__main__":
     # Example
