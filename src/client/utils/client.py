@@ -3,7 +3,7 @@ import os
 from argparse import Namespace
 
 from client.utils.client_protocol import ClientProtocol
-from common.socket.packet import HeaderFlags, Packet
+from common.skt.packet import HeaderFlags, Packet
 
 
 class Client:
