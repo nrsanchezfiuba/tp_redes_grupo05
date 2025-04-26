@@ -1,24 +1,24 @@
 import asyncio
 from typing import Optional, Tuple
 
-from common.socket.packet import Packet
-from common.socket.udp_socket import UDPSocket
+from common.skt.packet import Packet
+from common.skt.udp_socket import UDPSocket
 
 
 class ConnectionSocket:
 
     @classmethod
-    def for_client(cls, host: str, port: int) -> "ConnectionSocket":
-        return cls(host, port, None)
+    def for_client(cls, addr: Tuple[str, int]) -> "ConnectionSocket":
+        return cls(addr, None)
 
     @classmethod
     def for_server(
-        cls, host: str, port: int, queue: asyncio.Queue[Packet]
+        cls, addr: Tuple[str, int], queue: asyncio.Queue[Packet]
     ) -> "ConnectionSocket":
-        return cls(host, port, queue)
+        return cls(addr, queue)
 
-    def __init__(self, host: str, port: int, queue: Optional[asyncio.Queue[Packet]]):
-        self.addr: Tuple[str, int] = (host, port)
+    def __init__(self, addr: Tuple[str, int], queue: Optional[asyncio.Queue[Packet]]):
+        self.addr: Tuple[str, int] = addr
         self.udp_socket: UDPSocket = UDPSocket()
         self.queue: Optional[asyncio.Queue[Packet]] = queue
 

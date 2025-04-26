@@ -2,8 +2,8 @@ import asyncio
 import os
 from argparse import Namespace
 
-from common.socket.packet import HeaderFlags, Packet
-from common.socket.udp_socket import UDPSocket
+from common.skt.packet import HeaderFlags, Packet
+from common.skt.udp_socket import UDPSocket
 
 
 class Server:

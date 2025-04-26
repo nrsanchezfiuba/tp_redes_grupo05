@@ -1,6 +1,6 @@
 import unittest
 
-from common.socket.packet import HeaderFlags, HeaderMasks, Packet
+from common.skt.packet import HeaderFlags, HeaderMasks, Packet
 
 
 class TestPacket(unittest.TestCase):

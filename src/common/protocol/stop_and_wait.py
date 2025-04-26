@@ -1,8 +1,8 @@
 import asyncio
 
 from common.protocol.protocol import BLOCK_SIZE, Protocol
-from common.socket.connection_socket import ConnectionSocket
-from common.socket.packet import HeaderFlags, Packet
+from common.skt.connection_socket import ConnectionSocket
+from common.skt.packet import HeaderFlags, Packet
 
 TIMEOUT_END_CONECTION: float = 5
 
