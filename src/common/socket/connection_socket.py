@@ -20,4 +20,6 @@ class ConnectionSocket:
         return recv_pkt
 
     async def close(self) -> None:
+        # We pray to garbage collector
+        # await self.queue.shutdown(immediate=True)
         pass
