@@ -1,4 +1,3 @@
-from common.packet import Packet
 from common.protocol.protocol import BLOCK_SIZE, Protocol
 
 
@@ -18,8 +17,8 @@ class StopAndWait(Protocol):
                     if not block:
                         break
 
-                    packet = Packet.for_file(block)
-                    self.socket.send_all(packet.to_bytes())
+                    # packet = Packet.for_file(block)
+                    # self.socket.send_all(packet.to_bytes())
 
                     # TODO: ACK
 
