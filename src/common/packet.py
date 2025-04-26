@@ -24,7 +24,6 @@ class HeaderFlags(Enum):
     ACK = 0x0400
 
 
-# TODO: Change types to int
 class HeaderData(NamedTuple):
     """
     Represents a header of 6 bytes that includes:
@@ -40,7 +39,6 @@ class HeaderData(NamedTuple):
     ack_number: int
 
 
-# TODO: Update the methods documentation
 class Packet:
     @classmethod
     def from_bytes(cls, packet: bytes) -> "Packet":
