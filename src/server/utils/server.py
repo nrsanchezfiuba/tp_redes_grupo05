@@ -2,8 +2,9 @@ import asyncio
 import os
 from argparse import Namespace
 
-from common.skt.packet import HeaderFlags, Packet
-from common.skt.udp_socket import UDPSocket
+from common.flow_manager import FlowManager
+from common.skt.acceptor_socket import AcceptorSocket
+from common.skt.packet import HeaderFlags
 
 
 class Server:
@@ -21,33 +22,44 @@ class Server:
             self.storage = os.path.join(os.path.dirname(__file__), "storage")
         os.makedirs(self.storage, exist_ok=True)
 
-        self.socket = UDPSocket()
+        header_flag = HeaderFlags.STOP_WAIT
+
+        if self.protocol == "SW":
+            header_flag = HeaderFlags.STOP_WAIT
+        elif self.protocol == "GBN":
+            header_flag = HeaderFlags.GBN
+        else:
+            raise ValueError("I dont have this protocol. Suck my dick")
+
+        self.flow_manager = FlowManager()
+        self.acceptor_skt = AcceptorSocket(header_flag, self.flow_manager)
 
     async def start_server(self) -> None:
-        await self.socket.init_connection(self.host, self.port)
-        if not self.quiet:
-            print(
-                f"Server listening on {self.host}:{self.port} using {self.protocol} protocol"
-            )
+        self.acceptor_skt
+        # await self.socket.init_connection(self.host, self.port)
+        # if not self.quiet:
+        #     print(
+        #         f"Server listening on {self.host}:{self.port} using {self.protocol} protocol"
+        #     )
 
-        while True:
-            data, addr = await self.socket.recv_all()
+        # while True:
+        #     data, addr = await self.socket.recv_all()
 
-            if self.verbose:
-                print(f"Received {len(data)} bytes from {addr}")
+        #     if self.verbose:
+        #         print(f"Received {len(data)} bytes from {addr}")
 
-            client_data = Packet.from_bytes(data)
-            print(repr(client_data))
-            length = client_data.header_data.length
+        #     client_data = Packet.from_bytes(data)
+        #     print(repr(client_data))
+        #     length = client_data.header_data.length
 
-            response = Packet(
-                seq_num=length,
-                ack_num=length + client_data.get_seq_num(),
-                data=b"ACK",
-                flags=HeaderFlags.ACK.value,
-            )
+        #     response = Packet(
+        #         seq_num=length,
+        #         ack_num=length + client_data.get_seq_num(),
+        #         data=b"ACK",
+        #         flags=HeaderFlags.ACK.value,
+        #     )
 
-            self.socket.send_all(response.to_bytes(), addr)
+        #     self.socket.send_all(response.to_bytes(), addr)
 
     def run(self) -> None:
         if self.verbose:
