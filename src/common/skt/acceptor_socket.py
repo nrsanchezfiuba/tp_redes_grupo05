@@ -1,3 +1,4 @@
+import asyncio
 from typing import Tuple
 
 from common.flow_manager import FlowManager
@@ -6,6 +7,9 @@ from common.skt.udp_socket import UDPSocket
 
 
 class ConnectionSocket:
+    def __init__(self, queue: asyncio.Queue[Packet], sender: Tuple[str, int]):
+        pass
+
     pass
 
 
@@ -35,22 +39,23 @@ class AcceptorSocket:
             - checking for compatible protocol_type
         Demultiplexes incomming messages from conneted processes
         """
-        data, sender = await self.udp_skt.recv_all()
-        pkt = Packet.from_bytes(data)
+        while True:
+            data, sender = await self.udp_skt.recv_all()
+            pkt = Packet.from_bytes(data)
 
-        if self._is_protocol_invalid(pkt):
-            self._send_fin(sender)
-        elif pkt.is_syn():
-            self.flow_manager.add_flow(sender)
-            self._send_syn_ack(sender)
-        elif pkt.is_fin():
-            self.flow_manager.remove_flow(sender)
-            if not pkt.is_ack():
-                self._send_fin_ack(sender)
-        else:
-            await self.flow_manager.demultiplex_packet(sender, pkt)
-
-        return ConnectionSocket()
+            if self._is_protocol_invalid(pkt):
+                self._send_fin(sender)
+            elif pkt.is_syn():
+                # Hanshake the new connection
+                q = self.flow_manager.add_flow(sender)
+                self._send_syn_ack(sender)
+                return ConnectionSocket(q, sender)
+            elif pkt.is_fin():
+                self.flow_manager.remove_flow(sender)
+                if not pkt.is_ack():
+                    self._send_fin_ack(sender)
+            else:
+                await self.flow_manager.demultiplex_packet(sender, pkt)
 
     def _is_protocol_invalid(self, pkt: Packet) -> bool:
         return pkt.get_protocol_type() != self.proto_type
