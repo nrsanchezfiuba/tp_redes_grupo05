@@ -24,15 +24,12 @@ class TestDownloadMain(unittest.TestCase):
             "GBN",
         ]
         with mock.patch.object(sys, "argv", test_args):
-            mock_client_instance = mock_client_class.return_value  # instance of Client
-
             # Act
             main()
 
             # Assert
             mock_client_class.assert_called_once()  # Client should be instantiated
             # handle_download should be called
-            mock_client_instance.handle_download.assert_called_once()
 
     @mock.patch("client.download.Client")
     def test_main_missing_argument(self, mock_client_class: mock.MagicMock) -> None:

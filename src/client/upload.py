@@ -1,14 +1,16 @@
-def main() -> None:
-    pass
-    # args_parser = ArgsParser(
-    #     description="Client to upload files from a server.",
-    #     usage="upload [-h] [-v | -q] [-H ADDR] [-p PORT] [-d FILEPATH] [-n FILENAME] [-r protocol]",
-    #     include_destination=True,
-    #     include_filename=True,
-    # )
+from client.utils.client import Client
+from common.args_parser import ArgsParser
 
-    # client = Client(args_parser.get_arguments())
-    # client.handle_upload()
+
+def main() -> None:
+    args_parser = ArgsParser(
+        description="Client to upload files from a server.",
+        usage="upload [-h] [-v | -q] [-H ADDR] [-p PORT] [-d FILEPATH] [-n FILENAME] [-r protocol]",
+        include_destination=True,
+        include_filename=True,
+    )
+    client = Client(args_parser.get_arguments())
+    client.run()
 
 
 if __name__ == "__main__":
