@@ -1,6 +1,6 @@
 import asyncio
 
-from common.protocol.protocol import Protocol
+from common.protocol.protocol import BLOCK_SIZE, Protocol
 from common.skt.connection_socket import ConnectionSocket
 from common.skt.packet import HeaderFlags, Packet
 
@@ -34,44 +34,34 @@ class StopAndWait(Protocol):
 
     async def send_file(self, name: str, filepath: str, mode: int) -> None:
 
-        pkt = Packet(
-            seq_num=0,
-            ack_num=0,
-            data=b"data",
-            length=8,
-            flags=HeaderFlags.STOP_WAIT.value | mode,
-        )
+        try:
+            with open(
+                "/home/sev/Desktop/Facultad/redes/tp_redes_grupo05/src/server/storage/data.txt",
+                "rb",
+            ) as file:
+                seq_num: int = 0
+                ack_num: int = 0
+                max_retries: int = 3
+                retry_count: int
+                while True:
+                    retry_count = 0
+                    block = file.read(BLOCK_SIZE)
+                    if not block:
+                        break
 
-        await self.socket.send(pkt)
+                    packet = Packet(
+                        seq_num, ack_num, block, HeaderFlags.STOP_WAIT.value | mode
+                    )
 
-        # try:
-        #     with open(
-        #         "/home/sev/Desktop/Facultad/redes/tp_redes_grupo05/src/server/storage/data.txt",
-        #         "rb",
-        #     ) as file:
-        #         seq_num: int = 0
-        #         ack_num: int = 0
-        #         max_retries: int = 3
-        #         retry_count: int
-        #         while True:
-        #             retry_count = 0
-        #             block = file.read(BLOCK_SIZE)
-        #             if not block:
-        #                 break
+                while retry_count < max_retries:
+                    if await self._send_and_wait_ack(packet, timeout=1.0):
+                        break  # ACK recibido
+                    retry_count += 1
 
-        #             packet = Packet(
-        #                 seq_num, ack_num, block, HeaderFlags.STOP_WAIT.value | mode
-        #             )
-
-        #         while retry_count < max_retries:
-        #             if await self._send_and_wait_ack(packet, timeout=1.0):
-        #                 break  # ACK recibido
-        #             retry_count += 1
-
-        # except FileNotFoundError:
-        #     raise FileNotFoundError(f"El archivo '{filepath}' no existe.")
-        # except Exception as e:
-        #     raise RuntimeError(f"Error inesperado: {e}")
+        except FileNotFoundError:
+            raise FileNotFoundError(f"El archivo '{filepath}' no existe.")
+        except Exception as e:
+            raise RuntimeError(f"Error inesperado: {e}")
 
     async def _send_and_wait_ack(self, packet: Packet, timeout: float = 1.0) -> bool:
         await self.socket.send(packet)

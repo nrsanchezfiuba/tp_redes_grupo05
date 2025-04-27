@@ -74,7 +74,7 @@ class Server:
             loop.close()
 
     async def _handle_download(self, protocol: Protocol) -> None:
-        print(f"[Server] Downloading file to {self.dirpath}")
+        print(f"[Server] Sending file to user from {self.dirpath}")
         await protocol.send_file("", self.dirpath, HeaderFlags.DOWNLOAD.value)
 
     async def _handle_upload(self, protocol: Protocol) -> None:

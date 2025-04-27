@@ -12,10 +12,12 @@ class ConnectionSocket:
         return cls(addr, None)
 
     @classmethod
-    def for_server(
+    async def for_server(
         cls, addr: Tuple[str, int], queue: asyncio.Queue[Packet]
     ) -> "ConnectionSocket":
-        return cls(addr, queue)
+        cs = cls(addr, queue)
+        await cs.udp_socket.init_connection(addr[0], addr[1])
+        return cs
 
     def __init__(self, addr: Tuple[str, int], queue: Optional[asyncio.Queue[Packet]]):
         self.addr: Tuple[str, int] = addr
@@ -27,6 +29,7 @@ class ConnectionSocket:
         await self.udp_socket.send_all(
             Packet(flags=HeaderFlags.SYN.value | protocol.value).to_bytes(), self.addr
         )
+        print("[ConnectionSocket] AAAAAAAA")
         response, _ = await self.udp_socket.recv_all()
         print(f"[ConnectionSocket] Received packet: {response.decode('utf-8')}")
         pkt = Packet.from_bytes(response)

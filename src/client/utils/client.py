@@ -54,8 +54,6 @@ class Client:
         else:
             print("Starting client...")
 
-        # asyncio.run(self.start_client())
-
         loop = asyncio.get_event_loop()
 
         try:

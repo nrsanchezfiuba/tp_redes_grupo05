@@ -65,7 +65,7 @@ class UDPSocket(asyncio.DatagramProtocol):
         - Tuple[bytes, Tuple[str, int]]: The received data and the sender's address.
         """
         data, addr = await self.recv_queue.get()
-        print(data, addr)
+        print(data.decode("utf-8"), addr)
         return data, addr
 
     def send_all(self, data: bytes, addr: Tuple[str, int]) -> asyncio.Future[None]:

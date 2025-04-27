@@ -46,7 +46,7 @@ class AcceptorSocket:
                 # Hanshake the new connection
                 q: asyncio.Queue[Packet] = self.flow_manager.add_flow(sender)
                 self._send_syn_ack(sender)
-                return ConnectionSocket.for_server(sender, q)
+                return await ConnectionSocket.for_server(sender, q)
             elif pkt.is_fin():
                 self.flow_manager.remove_flow(sender)
                 if not pkt.is_ack():
