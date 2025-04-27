@@ -5,7 +5,6 @@ from argparse import Namespace
 from common.flow_manager import FlowManager
 from common.protocol.protocol import Protocol
 from common.protocol.stop_and_wait import StopAndWait
-from common.skt import packet
 from common.skt.acceptor_socket import AcceptorSocket
 from common.skt.packet import HeaderFlags
 
@@ -38,25 +37,10 @@ class Server:
         self.acceptor_skt = AcceptorSocket(self.header_flag, self.flow_manager)
 
     async def start_server(self) -> None:
-        await self.acceptor_skt.bind(self.host, self.port)
+        self.acceptor_skt.bind(self.host, self.port)
         while True:
             # Wait for incoming connections
             connection_skt = await self.acceptor_skt.accept()
-            connection_skt.send(
-                packet.Packet(
-                    data=b"OWO",
-                )
-            )
-            connection_skt.send(
-                packet.Packet(
-                    data=b"UWU",
-                )
-            )
-            connection_skt.send(
-                packet.Packet(
-                    data=b"EWE",
-                )
-            )
 
             print("[Server] Starting action...")
 

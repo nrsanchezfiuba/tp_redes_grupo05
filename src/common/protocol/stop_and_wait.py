@@ -25,7 +25,7 @@ class StopAndWait(Protocol):
                     )
 
                 self.save_data(recv_pkt.get_data(), dirpath)
-                self.socket.send(Packet.for_ack(0, 0))
+                await self.socket.send(Packet.for_ack(0, 0))
         except asyncio.TimeoutError:
             print("TIMEOUT in SW.recv_file")
             return
@@ -64,7 +64,7 @@ class StopAndWait(Protocol):
 
     async def _send_and_wait_ack(self, packet: Packet, timeout: float = 1.0) -> bool:
         print(packet)
-        self.socket.send(packet)
+        await self.socket.send(packet)
 
         try:
             recv_pkt = await asyncio.wait_for(self.socket.recv(), timeout=timeout)

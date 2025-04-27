@@ -19,11 +19,11 @@ class AcceptorSocket:
         self.udp_skt = UDPSocket()
         self.flow_manager = flow_manager
 
-    async def bind(self, host: str, port: int) -> None:
+    def bind(self, host: str, port: int) -> None:
         """
         Binds the socket to the specified host and port.
         """
-        await self.udp_skt.bind_connection(host, port)
+        self.udp_skt.bind(host, port)
 
     async def accept(self) -> ConnectionSocket:
         """
@@ -39,37 +39,37 @@ class AcceptorSocket:
             print(f"[AcceptorSocket] Received packet: {pkt}")
 
             if self._is_protocol_invalid(pkt):
-                self._send_fin(sender)
+                await self._send_fin(sender)
             elif pkt.is_syn():
                 print(f"[AcceptorSocket] SYN packet received from {sender}")
                 # Hanshake the new connection
                 q: asyncio.Queue[Packet] = self.flow_manager.add_flow(sender)
-                self._send_syn_ack(sender)
+                await self._send_syn_ack(sender)
                 return await ConnectionSocket.for_server(sender, q)
             elif pkt.is_fin():
                 self.flow_manager.remove_flow(sender)
                 if not pkt.is_ack():
-                    self._send_fin_ack(sender)
+                    await self._send_fin_ack(sender)
             else:
                 await self.flow_manager.demultiplex_packet(sender, pkt)
 
     def _is_protocol_invalid(self, pkt: Packet) -> bool:
         return pkt.get_protocol_type() != self.proto_type
 
-    def _send_syn_ack(self, sender: Tuple[str, int]) -> None:
+    async def _send_syn_ack(self, sender: Tuple[str, int]) -> None:
         syn_ack_pkt = Packet(
             flags=HeaderFlags.SYN.value | HeaderFlags.ACK.value,
         )
-        self.udp_skt.send_all(syn_ack_pkt.to_bytes(), sender)
+        await self.udp_skt.send_all(syn_ack_pkt.to_bytes(), sender)
 
-    def _send_fin_ack(self, sender: Tuple[str, int]) -> None:
+    async def _send_fin_ack(self, sender: Tuple[str, int]) -> None:
         fin_ack_pkt = Packet(
             flags=HeaderFlags.FIN.value | HeaderFlags.ACK.value,
         )
-        self.udp_skt.send_all(fin_ack_pkt.to_bytes(), sender)
+        await self.udp_skt.send_all(fin_ack_pkt.to_bytes(), sender)
 
-    def _send_fin(self, sender: Tuple[str, int]) -> None:
+    async def _send_fin(self, sender: Tuple[str, int]) -> None:
         fin_pkt = Packet(
             flags=HeaderFlags.FIN.value,
         )
-        self.udp_skt.send_all(fin_pkt.to_bytes(), sender)
+        await self.udp_skt.send_all(fin_pkt.to_bytes(), sender)

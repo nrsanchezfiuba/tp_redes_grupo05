@@ -1,85 +1,26 @@
 import asyncio
-from typing import Optional, Tuple
+import socket
+from typing import Tuple
 
 
-class UDPSocket(asyncio.DatagramProtocol):
+class UDPSocket:
     def __init__(self) -> None:
-        """
-        Attributes:
-        - transport: The transport object used for sending and receiving data.
-        - recv_queue: A queue to store received datagrams along with their sender's address.
-        """
-        self.transport: Optional[asyncio.transports.DatagramTransport] = None
-        self.recv_queue: asyncio.Queue[Tuple[bytes, Tuple[str, int]]] = asyncio.Queue()
+        self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        self.sock.setblocking(False)
 
-    def connection_made(self, transport: asyncio.transports.BaseTransport) -> None:
-        """
-        Called when a connection is made.
+    def __del__(self) -> None:
+        self.sock.close()
 
-        Args:
-        - transport: The transport object for the connection.
-        """
-        print("[Server] Connection made")
-        self.transport = transport  # type: ignore
-
-    def datagram_received(self, data: bytes, addr: Tuple[str, int]) -> None:
-        """
-        Called when a datagram is received.
-
-        Args:
-        - data (bytes): The received data.
-        - addr (Tuple[str, int]): The address of the sender.
-        """
-        print(f"[*] Data received from {addr}")
-        self.recv_queue.put_nowait((data, addr))
-
-    async def bind_connection(self, host: str, port: int) -> None:
-        """
-        Initializes the UDP connection by binding to the specified host and port.
-
-        Args:
-        - host (str): The hostname or IP address to bind to.
-        - port (int): The port number to bind to.
-        """
+    def bind(self, host: str, port: int) -> None:
         print(f"[Server] Binding to {host}:{port}")
-        loop = asyncio.get_running_loop()
-        transport, _ = await loop.create_datagram_endpoint(
-            lambda: self, local_addr=(host, port)
-        )
-        self.transport = transport
-
-    async def init_connection(self, host: str, port: int) -> None:
-        print(f"[Client] Init connection to {host}:{port}")
-
-        loop = asyncio.get_running_loop()
-        transport, _ = await loop.create_datagram_endpoint(
-            lambda: self, remote_addr=(host, port)
-        )
-        self.transport = transport
+        self.sock.bind((host, port))
 
     async def recv_all(self) -> Tuple[bytes, Tuple[str, int]]:
-        """
-        Waits until a datagram is received and returns it.
-
-        Returns:
-        - Tuple[bytes, Tuple[str, int]]: The received data and the sender's address.
-        """
-        data, addr = await self.recv_queue.get()
+        loop = asyncio.get_running_loop()
+        data, addr = await loop.sock_recvfrom(self.sock, 2048)
         return data, addr
 
-    def send_all(self, data: bytes, addr: Tuple[str, int]) -> None:
-        """
-        Sends data to the specified address.
-
-        Args:
-        - data (bytes): The data to send.
-        - addr (Tuple[str, int]): The address of the recipient (host, port).
-        """
+    async def send_all(self, data: bytes, addr: Tuple[str, int]) -> None:
         print(f"[*] Sending data to {addr}")
-        if self.transport is None:
-            raise RuntimeError("Transport is not initialized")
-        self.transport.sendto(data, addr)
-
-    def close(self) -> None:
-        if self.transport is not None:
-            self.transport.close()
+        loop = asyncio.get_running_loop()
+        await loop.sock_sendto(self.sock, data, addr)
