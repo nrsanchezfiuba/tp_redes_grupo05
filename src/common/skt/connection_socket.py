@@ -41,6 +41,7 @@ class ConnectionSocket:
             response, _ = await self.udp_socket.recv_all()
             recv_pkt = Packet.from_bytes(response)
         else:
+            print(f"QUEUE: {self.queue}")
             recv_pkt = await self.queue.get()
 
         print(f"[ConnectionSocket] Received packet: {recv_pkt}")
