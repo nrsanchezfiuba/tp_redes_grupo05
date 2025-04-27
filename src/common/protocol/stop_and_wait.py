@@ -33,6 +33,17 @@ class StopAndWait(Protocol):
 
     async def send_file(self, name: str, filepath: str, mode: int) -> None:
         try:
+
+            print("hola")
+
+            pkt = await self.socket.recv()
+
+            print("hola2")
+
+            print(f"[SendFile]: Received packet {pkt}")
+            while not pkt.is_syn() and not pkt.is_ack():
+                pkt = await self.socket.recv()
+
             with open(filepath, "rb") as file:
                 seq_num: int = 0
                 ack_num: int = 0

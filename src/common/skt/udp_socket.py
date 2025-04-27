@@ -30,10 +30,10 @@ class UDPSocket(asyncio.DatagramProtocol):
         - data (bytes): The received data.
         - addr (Tuple[str, int]): The address of the sender.
         """
-        print(f"[Server] Data received from {addr}")
+        print(f"[*] Data received from {addr}")
         self.recv_queue.put_nowait((data, addr))
 
-    async def init_connection(self, host: str, port: int) -> None:
+    async def bind_connection(self, host: str, port: int) -> None:
         """
         Initializes the UDP connection by binding to the specified host and port.
 
@@ -48,6 +48,15 @@ class UDPSocket(asyncio.DatagramProtocol):
         )
         self.transport = transport
 
+    async def init_connection(self, host: str, port: int) -> None:
+        print(f"[Client] Init connection to {host}:{port}")
+
+        loop = asyncio.get_event_loop()
+        transport, _ = await loop.create_datagram_endpoint(
+            lambda: self, remote_addr=(host, port)
+        )
+        self.transport = transport
+
     async def recv_all(self) -> Tuple[bytes, Tuple[str, int]]:
         """
         Waits until a datagram is received and returns it.
@@ -56,6 +65,7 @@ class UDPSocket(asyncio.DatagramProtocol):
         - Tuple[bytes, Tuple[str, int]]: The received data and the sender's address.
         """
         data, addr = await self.recv_queue.get()
+        print(data, addr)
         return data, addr
 
     def send_all(self, data: bytes, addr: Tuple[str, int]) -> asyncio.Future[None]:
@@ -66,7 +76,7 @@ class UDPSocket(asyncio.DatagramProtocol):
         - data (bytes): The data to send.
         - addr (Tuple[str, int]): The address of the recipient (host, port).
         """
-        print(f"[Server] Sending data to {addr}")
+        print(f"[*] Sending data to {addr}")
         if self.transport is not None:
             self.transport.sendto(data, addr)
         else:

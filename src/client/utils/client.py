@@ -2,8 +2,9 @@ import asyncio
 import os
 from argparse import Namespace
 
-from client.utils.client_protocol import ClientProtocol
-from common.skt.packet import HeaderFlags, Packet
+from common.protocol.stop_and_wait import StopAndWait
+from common.skt.connection_socket import ConnectionSocket
+from common.skt.packet import HeaderFlags
 
 
 class Client:
@@ -18,53 +19,16 @@ class Client:
         self.quiet: bool = args.quiet
         self.file_path = os.path.join(self.dst, self.name)
 
-    def handle_upload(self) -> None:
-        self.run()
-
-    def handle_download(self) -> None:
-        self.run()
-
     async def start_client(self) -> None:
         print(f"[Client] Connecting to {self.host}:{self.port}")
 
-        # la magia de concurrencia epica
-        loop = asyncio.get_running_loop()
-        protocol = ClientProtocol()
-        transport, _ = await loop.create_datagram_endpoint(
-            lambda: protocol, remote_addr=(self.host, self.port)
-        )
+        connection_skt = ConnectionSocket.for_client((self.host, self.port))
+        await connection_skt.init_connection()
+        await self.handle_download(connection_skt)
 
-        try:
-            for i in range(5):
-                message = Packet(
-                    seq_num=i,
-                    ack_num=0,
-                    data=f"Hello {i}".encode(),
-                    flags=HeaderFlags.SYN.value,
-                )
-
-                if self.verbose:
-                    print(f"[Client] Sending: {repr(message)}")
-                    print(
-                        f"[Client] Sending bytes: {message.to_bytes().decode('utf-8', errors='replace')}"
-                    )
-
-                transport.sendto(message.to_bytes())
-
-                # Wait to receive a response BEFORE sending the next message
-                try:
-                    data, addr = await asyncio.wait_for(protocol.recv(), timeout=2.0)
-                    print(
-                        f"[Client] Received response: {Packet.from_bytes(data)} from {addr}"
-                    )
-                except asyncio.TimeoutError:
-                    print("[Client] No response received (timeout)")
-                    break
-
-                await asyncio.sleep(0.5)  # Optional small pause
-
-        finally:
-            transport.close()
+    async def handle_download(self, connection_skt: ConnectionSocket) -> None:
+        protocol = StopAndWait(connection_skt)
+        await protocol.send_file(self.name, self.dst, HeaderFlags.DOWNLOAD.value)
 
     def run(self) -> None:
         if self.verbose:
@@ -80,3 +44,19 @@ class Client:
             print("Starting client...")
 
         asyncio.run(self.start_client())
+
+        # loop = asyncio.get_event_loop()
+
+        # try:
+        #     loop.run_until_complete(self.start_client())
+        # except KeyboardInterrupt:
+        #     print("\n[Client] Stopping client...")
+
+        #     tasks = [t for t in asyncio.all_tasks(loop=loop) if not t.done()]
+        #     for task in tasks:
+        #         task.cancel()
+
+        #     loop.run_until_complete(asyncio.gather(*tasks, return_exceptions=True))
+        # finally:
+        #     loop.run_until_complete(loop.shutdown_asyncgens())
+        #     loop.close()
