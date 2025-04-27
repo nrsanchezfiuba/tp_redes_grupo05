@@ -36,8 +36,8 @@ class AcceptorSocket:
         while True:
             data, sender = await self.udp_skt.recv_all()
             pkt = Packet.from_bytes(data)
-
             print(f"[AcceptorSocket] Received packet: {pkt}")
+
             if self._is_protocol_invalid(pkt):
                 self._send_fin(sender)
             elif pkt.is_syn():

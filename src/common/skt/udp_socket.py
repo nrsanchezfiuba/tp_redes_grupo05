@@ -65,7 +65,6 @@ class UDPSocket(asyncio.DatagramProtocol):
         - Tuple[bytes, Tuple[str, int]]: The received data and the sender's address.
         """
         data, addr = await self.recv_queue.get()
-        print(data.decode("utf-8"), addr)
         return data, addr
 
     def send_all(self, data: bytes, addr: Tuple[str, int]) -> None:
@@ -79,5 +78,8 @@ class UDPSocket(asyncio.DatagramProtocol):
         print(f"[*] Sending data to {addr}")
         if self.transport is None:
             raise RuntimeError("Transport is not initialized")
-        else:
-            self.transport.sendto(data, addr)
+        self.transport.sendto(data, addr)
+
+    def close(self) -> None:
+        if self.transport is not None:
+            self.transport.close()
