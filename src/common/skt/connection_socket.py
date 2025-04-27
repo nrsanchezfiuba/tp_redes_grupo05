@@ -6,7 +6,6 @@ from common.skt.udp_socket import UDPSocket
 
 
 class ConnectionSocket:
-
     @classmethod
     def for_client(cls, addr: Tuple[str, int]) -> "ConnectionSocket":
         return cls(addr, None)
@@ -15,9 +14,9 @@ class ConnectionSocket:
     async def for_server(
         cls, addr: Tuple[str, int], queue: asyncio.Queue[Packet]
     ) -> "ConnectionSocket":
-        cs = cls(addr, queue)
-        await cs.udp_socket.init_connection(addr[0], addr[1])
-        return cs
+        new_cls = cls(addr, queue)
+        await new_cls.udp_socket.init_connection(addr[0], addr[1])
+        return new_cls
 
     def __init__(self, addr: Tuple[str, int], queue: Optional[asyncio.Queue[Packet]]):
         self.addr: Tuple[str, int] = addr
@@ -26,10 +25,7 @@ class ConnectionSocket:
 
     async def connect(self, protocol: HeaderFlags) -> None:
         await self.udp_socket.init_connection(self.addr[0], self.addr[1])
-        await self.udp_socket.send_all(
-            Packet(flags=HeaderFlags.SYN.value | protocol.value).to_bytes(), self.addr
-        )
-        print("[ConnectionSocket] AAAAAAAA")
+        self.send(Packet(flags=HeaderFlags.SYN.value | protocol.value))
         response, _ = await self.udp_socket.recv_all()
         print(f"[ConnectionSocket] Received packet: {response.decode('utf-8')}")
         pkt = Packet.from_bytes(response)
@@ -40,8 +36,8 @@ class ConnectionSocket:
                 f"[ConnectionSocket] Failed to establish connection with {self.addr}"
             )
 
-    async def send(self, packet: Packet) -> None:
-        await self.udp_socket.send_all(packet.to_bytes(), self.addr)
+    def send(self, packet: Packet) -> None:
+        self.udp_socket.send_all(packet.to_bytes(), self.addr)
 
     async def recv(self) -> Packet:
         recv_pkt = None

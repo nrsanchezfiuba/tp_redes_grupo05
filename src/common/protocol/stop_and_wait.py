@@ -11,8 +11,8 @@ class StopAndWait(Protocol):
     def __init__(self, socket: ConnectionSocket):
         super().__init__(socket)
 
-    async def recv_file(self, name: str, filepath: str, mode: int) -> None:
-        print(f"[RecvFile]: Receiving file {name} to {filepath}")
+    async def recv_file(self, name: str, dirpath: str, mode: int) -> None:
+        print(f"[RecvFile]: Receiving file {name} to {dirpath}")
         try:
             while True:
                 recv_pkt = await asyncio.wait_for(
@@ -24,19 +24,18 @@ class StopAndWait(Protocol):
                         self.socket.recv(), TIMEOUT_END_CONECTION
                     )
 
-                self.save_data(recv_pkt.get_data(), filepath)
-                await self.socket.send(Packet.for_ack(0, 0))
+                self.save_data(recv_pkt.get_data(), dirpath)
+                self.socket.send(Packet.for_ack(0, 0))
         except asyncio.TimeoutError:
-            # TODO vervose mode end conection
+            print("TIMEOUT in SW.recv_file")
             return
         except Exception as e:
             raise RuntimeError(f"Unexpected error: {e}")
 
     async def send_file(self, name: str, filepath: str, mode: int) -> None:
-
         try:
             with open(
-                "/home/sev/Desktop/Facultad/redes/tp_redes_grupo05/src/server/storage/data.txt",
+                "./storage/data.txt",
                 "rb",
             ) as file:
                 seq_num: int = 0
@@ -53,10 +52,10 @@ class StopAndWait(Protocol):
                         seq_num, ack_num, block, HeaderFlags.STOP_WAIT.value | mode
                     )
 
-                while retry_count < max_retries:
-                    if await self._send_and_wait_ack(packet, timeout=1.0):
-                        break  # ACK recibido
-                    retry_count += 1
+                    while retry_count < max_retries:
+                        if await self._send_and_wait_ack(packet, timeout=1.0):
+                            break  # ACK recibido
+                        retry_count += 1
 
         except FileNotFoundError:
             raise FileNotFoundError(f"El archivo '{filepath}' no existe.")
@@ -64,7 +63,8 @@ class StopAndWait(Protocol):
             raise RuntimeError(f"Error inesperado: {e}")
 
     async def _send_and_wait_ack(self, packet: Packet, timeout: float = 1.0) -> bool:
-        await self.socket.send(packet)
+        print(packet)
+        self.socket.send(packet)
 
         try:
             recv_pkt = await asyncio.wait_for(self.socket.recv(), timeout=timeout)

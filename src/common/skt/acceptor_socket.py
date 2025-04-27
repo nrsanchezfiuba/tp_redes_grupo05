@@ -38,7 +38,6 @@ class AcceptorSocket:
             pkt = Packet.from_bytes(data)
 
             print(f"[AcceptorSocket] Received packet: {pkt}")
-
             if self._is_protocol_invalid(pkt):
                 self._send_fin(sender)
             elif pkt.is_syn():

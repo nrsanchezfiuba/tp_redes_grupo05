@@ -51,7 +51,7 @@ class UDPSocket(asyncio.DatagramProtocol):
     async def init_connection(self, host: str, port: int) -> None:
         print(f"[Client] Init connection to {host}:{port}")
 
-        loop = asyncio.get_event_loop()
+        loop = asyncio.get_running_loop()
         transport, _ = await loop.create_datagram_endpoint(
             lambda: self, remote_addr=(host, port)
         )
@@ -68,7 +68,7 @@ class UDPSocket(asyncio.DatagramProtocol):
         print(data.decode("utf-8"), addr)
         return data, addr
 
-    def send_all(self, data: bytes, addr: Tuple[str, int]) -> asyncio.Future[None]:
+    def send_all(self, data: bytes, addr: Tuple[str, int]) -> None:
         """
         Sends data to the specified address.
 
@@ -81,4 +81,3 @@ class UDPSocket(asyncio.DatagramProtocol):
             raise RuntimeError("Transport is not initialized")
         else:
             self.transport.sendto(data, addr)
-        return asyncio.Future()
