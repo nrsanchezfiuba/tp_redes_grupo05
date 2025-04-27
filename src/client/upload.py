@@ -9,9 +9,8 @@ def main() -> None:
         include_destination=True,
         include_filename=True,
     )
-
     client = Client(args_parser.get_arguments())
-    client.handle_upload()
+    client.run()
 
 
 if __name__ == "__main__":

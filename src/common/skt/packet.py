@@ -35,11 +35,16 @@ class HeaderData(NamedTuple):
 
     flags: int
     length: int
-    seq_number: int
-    ack_number: int
+    seq_num: int
+    ack_num: int
 
 
 class Packet:
+
+    @classmethod
+    def for_ack(cls, seq_num: int, ack_num: int) -> "Packet":
+        return cls(seq_num, ack_num, b"", HeaderFlags.ACK.value)
+
     @classmethod
     def from_bytes(cls, packet: bytes) -> "Packet":
         """
@@ -74,21 +79,26 @@ class Packet:
         packed_header: bytes = struct.pack(
             HEADER_PACK_FORMAT,
             flags_and_length,
-            self.header_data.seq_number,
-            self.header_data.ack_number,
+            self.header_data.seq_num,
+            self.header_data.ack_num,
         )
 
         # Return the header followed by the data
         return packed_header + self.data
 
     def __init__(
-        self, seq_num: int, ack_num: int, data: bytes, flags: int = 0, length: int = 0
+        self,
+        seq_num: int = 0,
+        ack_num: int = 0,
+        data: bytes = b"",
+        flags: int = 0,
+        length: int = 0,
     ) -> None:
         self.header_data = HeaderData(
             flags=flags,
             length=length if length else len(data),
-            seq_number=seq_num,
-            ack_number=ack_num,
+            seq_num=seq_num,
+            ack_num=ack_num,
         )
         self.data = data
 
@@ -96,8 +106,8 @@ class Packet:
         return (
             f"Packet(flags={hex(self.header_data.flags)}, "
             f"length={self.header_data.length}, "
-            f"seq_num={self.header_data.seq_number}, "
-            f"ack_num={self.header_data.ack_number}, "
+            f"seq_num={self.header_data.seq_num}, "
+            f"ack_num={self.header_data.ack_num}, "
             f"data={self.data!r})"
         )
 
@@ -115,6 +125,15 @@ class Packet:
 
     def get_protocol_type(self) -> HeaderFlags:
         return HeaderFlags(self.header_data.flags & HeaderMasks.PROTOCOLTYPE.value)
+
+    def get_ack_num(self) -> int:
+        return self.header_data.ack_num
+
+    def get_seq_num(self) -> int:
+        return self.header_data.seq_num
+
+    def get_data(self) -> bytes:
+        return self.data
 
 
 if __name__ == "__main__":

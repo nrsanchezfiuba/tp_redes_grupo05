@@ -2,8 +2,16 @@ import asyncio
 import os
 from argparse import Namespace
 
-from common.packet import HeaderFlags, Packet
-from common.udp_socket import UDPSocket
+from common.flow_manager import FlowManager
+from common.protocol.protocol import Protocol
+from common.protocol.stop_and_wait import StopAndWait
+from common.skt.acceptor_socket import AcceptorSocket
+from common.skt.packet import HeaderFlags
+
+protocol_mapping = {
+    "SW": HeaderFlags.STOP_WAIT,
+    "GBN": HeaderFlags.GBN,
+}
 
 
 class Server:
@@ -11,55 +19,43 @@ class Server:
         self.args: Namespace = args
         self.host: str = args.host
         self.port: int = args.port
-        self.storage: str = args.storage
+        self.dirpath: str = args.storage
         self.protocol: str = args.protocol.upper()
         self.verbose: bool = args.verbose
         self.quiet: bool = args.quiet
 
-        # Initialize the storage folder path
-        if not self.storage:
-            self.storage = os.path.join(os.path.dirname(__file__), "storage")
-        os.makedirs(self.storage, exist_ok=True)
+        # Initialize the dirpath folder path
+        if not self.dirpath:
+            self.dirpath = os.path.join(os.path.dirname(__file__), "dirpath")
+        os.makedirs(self.dirpath, exist_ok=True)
 
-        self.socket = UDPSocket()
+        self.header_flag = protocol_mapping.get(self.protocol)
+        if self.header_flag is None:
+            raise ValueError(f"Unsupported protocol: {self.protocol}")
+
+        self.flow_manager = FlowManager()
+        self.acceptor_skt = AcceptorSocket(self.header_flag, self.flow_manager)
 
     async def start_server(self) -> None:
-        await self.socket.init_connection(self.host, self.port)
-        if not self.quiet:
-            print(
-                f"Server listening on {self.host}:{self.port} using {self.protocol} protocol"
-            )
-
+        self.acceptor_skt.bind(self.host, self.port)
         while True:
-            data, addr = await self.socket.recv_all()
+            # Wait for incoming connections
+            connection_skt = await self.acceptor_skt.accept()
 
-            if self.verbose:
-                print(f"Received {len(data)} bytes from {addr}")
+            print("[Server] Starting action...")
 
-            client_data = Packet.from_bytes(data)
-            print(repr(client_data))
-            length = client_data.header_data.length
-
-            response = Packet(
-                seq_num=length,
-                ack_num=length + client_data.header_data.seq_number,
-                data=b"ACK",
-                flags=HeaderFlags.ACK.value,
-            )
-
-            self.socket.send_all(response.to_bytes(), addr)
+            # TODO: should be either GBN or SW, this is to test the protocol
+            protocol = StopAndWait(connection_skt)
+            await self._handle_download(protocol)
 
     def run(self) -> None:
         if self.verbose:
-            print("Starting server with the following parameters:")
-            print(f"Host: {self.host}")
-            print(f"Port: {self.port}")
-            print(f"Storage folder dir path: {self.storage}")
-            print(f"Protocol: {self.protocol}")
-        elif self.quiet:
-            pass  # Suppress output
-        else:
-            print("Starting server...")
+            print("[Server] Starting server...")
+            print("[Server] Starting server with the following parameters:")
+            print(f"[Server] Host: {self.host}")
+            print(f"[Server] Port: {self.port}")
+            print(f"[Server] Storage folder dir path: {self.dirpath}")
+            print(f"[Server] Protocol: {self.protocol}")
 
         loop = asyncio.get_event_loop()
 
@@ -76,3 +72,10 @@ class Server:
         finally:
             loop.run_until_complete(loop.shutdown_asyncgens())
             loop.close()
+
+    async def _handle_download(self, protocol: Protocol) -> None:
+        print(f"[Server] Sending file to user from {self.dirpath}")
+        await protocol.send_file("", self.dirpath, HeaderFlags.DOWNLOAD.value)
+
+    async def _handle_upload(self, protocol: Protocol) -> None:
+        pass

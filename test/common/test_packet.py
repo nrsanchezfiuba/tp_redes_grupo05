@@ -1,6 +1,6 @@
 import unittest
 
-from common.packet import HeaderFlags, HeaderMasks, Packet
+from common.skt.packet import HeaderFlags, HeaderMasks, Packet
 
 
 class TestPacket(unittest.TestCase):
@@ -69,8 +69,8 @@ class TestPacket(unittest.TestCase):
         # Check rebuilt
         new_pckt = Packet.from_bytes(packet_bytes)
         self.assertEqual(new_pckt.header_data.length, 3)
-        self.assertEqual(new_pckt.header_data.seq_number, 0)
-        self.assertEqual(new_pckt.header_data.ack_number, 0)
+        self.assertEqual(new_pckt.header_data.seq_num, 0)
+        self.assertEqual(new_pckt.header_data.ack_num, 0)
         self.assertEqual(new_pckt.header_data.flags, flags)
 
         self.assertTrue(new_pckt.header_data.flags & HeaderMasks.SYN.value)
@@ -108,8 +108,8 @@ class TestPacket(unittest.TestCase):
         # Check rebuilt
         new_pckt = Packet.from_bytes(packet_bytes)
         self.assertEqual(new_pckt.header_data.length, 3)
-        self.assertEqual(new_pckt.header_data.seq_number, 0)
-        self.assertEqual(new_pckt.header_data.ack_number, 0)
+        self.assertEqual(new_pckt.header_data.seq_num, 0)
+        self.assertEqual(new_pckt.header_data.ack_num, 0)
         self.assertEqual(new_pckt.header_data.flags, flags)
 
         self.assertTrue(new_pckt.header_data.flags & HeaderMasks.SYN.value)
@@ -121,6 +121,19 @@ class TestPacket(unittest.TestCase):
         self.assertTrue(new_pckt.is_ack())
         self.assertEqual(new_pckt.get_protocol_type(), HeaderFlags.STOP_WAIT)
         self.assertEqual(new_pckt.get_mode(), HeaderFlags.DOWNLOAD)
+
+    def test_get_ack_or_seq_num(self) -> None:
+        pckt: Packet = Packet(1, 2)
+
+        # Check raw
+        packet_bytes: bytes = pckt.to_bytes()
+        self.assertEqual(int.from_bytes(packet_bytes[2:4]), 1)
+        self.assertEqual(int.from_bytes(packet_bytes[4:6]), 2)
+
+        # Check rebuilt
+        new_pckt = Packet.from_bytes(packet_bytes)
+        self.assertEqual(new_pckt.get_seq_num(), 1)
+        self.assertEqual(new_pckt.get_ack_num(), 2)
 
 
 if __name__ == "__main__":
