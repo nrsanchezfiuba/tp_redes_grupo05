@@ -22,9 +22,7 @@ class ConnectionSocket:
         self.udp_socket: UDPSocket = UDPSocket()
         self.queue: Optional[asyncio.Queue[Packet]] = queue
 
-    async def init_connection(
-        self, protocol: HeaderFlags = HeaderFlags.STOP_WAIT
-    ) -> None:
+    async def connect(self, protocol: HeaderFlags) -> None:
         await self.udp_socket.init_connection(self.addr[0], self.addr[1])
         await self.udp_socket.send_all(
             Packet(flags=HeaderFlags.SYN.value | protocol.value).to_bytes(), self.addr

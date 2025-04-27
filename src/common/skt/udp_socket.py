@@ -77,8 +77,8 @@ class UDPSocket(asyncio.DatagramProtocol):
         - addr (Tuple[str, int]): The address of the recipient (host, port).
         """
         print(f"[*] Sending data to {addr}")
-        if self.transport is not None:
-            self.transport.sendto(data, addr)
-        else:
+        if self.transport is None:
             raise RuntimeError("Transport is not initialized")
+        else:
+            self.transport.sendto(data, addr)
         return asyncio.Future()

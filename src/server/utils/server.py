@@ -4,6 +4,7 @@ from argparse import Namespace
 
 from common.flow_manager import FlowManager
 from common.protocol.protocol import Protocol
+from common.protocol.stop_and_wait import StopAndWait
 from common.skt.acceptor_socket import AcceptorSocket
 from common.skt.packet import HeaderFlags
 
@@ -38,31 +39,23 @@ class Server:
     async def start_server(self) -> None:
         await self.acceptor_skt.bind(self.host, self.port)
         while True:
-            protocol, mode = await self.acceptor_skt.accept()
+            # Wait for incoming connections
+            connection_skt = await self.acceptor_skt.accept()
 
-            print("Starting action...")
+            print("[Server] Starting action...")
 
-            handler = {
-                HeaderFlags.DOWNLOAD: self._handle_download,
-                HeaderFlags.UPLOAD: self._handle_upload,
-            }.get(mode)
-
-            if handler:
-                await handler(protocol)
-            else:
-                print(f"[Server] Unsupported mode: {mode}")
+            # TODO: should be either GBN or SW, this is to test the protocol
+            protocol = StopAndWait(connection_skt)
+            await self._handle_download(protocol)
 
     def run(self) -> None:
         if self.verbose:
-            print("Starting server with the following parameters:")
-            print(f"Host: {self.host}")
-            print(f"Port: {self.port}")
-            print(f"Storage folder dir path: {self.dirpath}")
-            print(f"Protocol: {self.protocol}")
-        elif self.quiet:
-            pass  # Suppress output
-        else:
-            print("Starting server...")
+            print("[Server] Starting server...")
+            print("[Server] Starting server with the following parameters:")
+            print(f"[Server] Host: {self.host}")
+            print(f"[Server] Port: {self.port}")
+            print(f"[Server] Storage folder dir path: {self.dirpath}")
+            print(f"[Server] Protocol: {self.protocol}")
 
         loop = asyncio.get_event_loop()
 
