@@ -33,7 +33,6 @@ class FlowManager:
         """
         Demultiplexes a packet to the appropriate flow queue.
         """
-        print(f"Demultiplex packet {pkt} to flow {flow}")
         if flow not in self.flow_table:
             raise ValueError(f"Flow {flow} not found in flow table")
         flow_queue = self.flow_table[flow]

@@ -12,7 +12,6 @@ class StopAndWait(Protocol):
         super().__init__(socket)
 
     async def recv_file(self, name: str, dirpath: str, mode: int) -> None:
-        print(f"[RecvFile]: Receiving file {name} to {dirpath}")
         try:
             while True:
                 recv_pkt = await asyncio.wait_for(

@@ -1,11 +1,13 @@
 import asyncio
 import os
 from argparse import Namespace
+from asyncio.queues import Queue
 
 from common.flow_manager import FlowManager
 from common.protocol.protocol import Protocol
 from common.protocol.stop_and_wait import StopAndWait
 from common.skt.acceptor_socket import AcceptorSocket
+from common.skt.connection_socket import ConnectionSocket
 from common.skt.packet import HeaderFlags
 
 protocol_mapping = {
@@ -38,19 +40,27 @@ class Server:
 
     async def start_server(self) -> None:
         self.acceptor_skt.bind(self.host, self.port)
-        while True:
-            # Wait for incoming connections
-            connection_skt = await self.acceptor_skt.accept()
 
-            print("[Server] Starting action...")
+        incomming_connections: Queue[ConnectionSocket] = asyncio.Queue()
 
-            # TODO: should be either GBN or SW, this is to test the protocol
-            protocol = StopAndWait(connection_skt)
-            await self._handle_download(protocol)
+        async def acceptor_callback() -> None:
+            while True:
+                connection_skt = await self.acceptor_skt.accept()
+                await incomming_connections.put(connection_skt)
+
+        async def handle_connection() -> None:
+            while True:
+                connection_skt = await incomming_connections.get()
+                protocol = StopAndWait(connection_skt)
+                await protocol.send_file("", self.dirpath, HeaderFlags.DOWNLOAD.value)
+
+        acceptor_task = asyncio.create_task(acceptor_callback())
+        handle_task = asyncio.create_task(handle_connection())
+
+        await asyncio.gather(acceptor_task, handle_task)
 
     def run(self) -> None:
         if self.verbose:
-            print("[Server] Starting server...")
             print("[Server] Starting server with the following parameters:")
             print(f"[Server] Host: {self.host}")
             print(f"[Server] Port: {self.port}")
