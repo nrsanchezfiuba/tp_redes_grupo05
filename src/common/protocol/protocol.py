@@ -11,8 +11,9 @@ class Protocol(ABC):
 
     @staticmethod
     def save_data(data: bytes, filename: str) -> None:
-        with open(filename, "ab") as file:
-            file.write(data)
+        print(f"[Protocol] Saving data to {filename}, {data.decode('utf-8')}")
+        # with open(filename, "ab") as file:
+        #     file.write(data)
 
     @abstractmethod
     async def recv_file(self, name: str, dirpath: str, mode: int) -> None:

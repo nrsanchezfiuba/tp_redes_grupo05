@@ -1,7 +1,7 @@
 import asyncio
 from typing import Optional, Tuple
 
-from common.skt.packet import Packet
+from common.skt.packet import HeaderFlags, Packet
 from common.skt.udp_socket import UDPSocket
 
 
@@ -22,9 +22,22 @@ class ConnectionSocket:
         self.udp_socket: UDPSocket = UDPSocket()
         self.queue: Optional[asyncio.Queue[Packet]] = queue
 
-    async def init_connection(self) -> None:
+    async def init_connection(
+        self, protocol: HeaderFlags = HeaderFlags.STOP_WAIT
+    ) -> None:
         await self.udp_socket.init_connection(self.addr[0], self.addr[1])
-        await self.udp_socket.send_all(Packet().to_bytes(), self.addr)
+        await self.udp_socket.send_all(
+            Packet(flags=HeaderFlags.SYN.value | protocol.value).to_bytes(), self.addr
+        )
+        response, _ = await self.udp_socket.recv_all()
+        print(f"[ConnectionSocket] Received packet: {response.decode('utf-8')}")
+        pkt = Packet.from_bytes(response)
+        if pkt.is_syn() and pkt.is_ack():
+            print(f"[ConnectionSocket] Connection established with {self.addr}")
+        else:
+            raise RuntimeError(
+                f"[ConnectionSocket] Failed to establish connection with {self.addr}"
+            )
 
     async def send(self, packet: Packet) -> None:
         await self.udp_socket.send_all(packet.to_bytes(), self.addr)
