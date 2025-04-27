@@ -39,14 +39,21 @@ class Server:
     async def start_server(self) -> None:
         self.acceptor_skt.bind(self.host, self.port)
         while True:
-            # Wait for incoming connections
-            connection_skt = await self.acceptor_skt.accept()
+            try:
+                # Wait for incoming connections
+                connection_skt = await self.acceptor_skt.accept()
 
-            print("[Server] Starting action...")
+                print("[Server] Connection established, starting protocol...")
 
-            # TODO: should be either GBN or SW, this is to test the protocol
-            protocol = StopAndWait(connection_skt)
-            await self._handle_download(protocol)
+                # TODO: should be either GBN or SW, this is to test the protocol
+                protocol = StopAndWait(connection_skt)
+                await self._handle_download(protocol)
+                
+                await connection_skt.close()
+            
+            except Exception as e:
+                print(f"[Server] Error handling connection: {e}")
+                continue
 
     def run(self) -> None:
         if self.verbose:
@@ -75,7 +82,9 @@ class Server:
 
     async def _handle_download(self, protocol: Protocol) -> None:
         print(f"[Server] Sending file to user from {self.dirpath}")
-        await protocol.send_file("", self.dirpath, HeaderFlags.DOWNLOAD.value)
+        filename = "data.txt"
+        storage_path = os.path.join(self.dirpath, "storage")
+        await protocol.send_file(filename, storage_path, HeaderFlags.DOWNLOAD.value)
 
     async def _handle_upload(self, protocol: Protocol) -> None:
         pass

@@ -1,4 +1,5 @@
 import asyncio
+import os
 
 from common.protocol.protocol import BLOCK_SIZE, Protocol
 from common.skt.connection_socket import ConnectionSocket
@@ -10,73 +11,116 @@ TIMEOUT_END_CONECTION: float = 5
 class StopAndWait(Protocol):
     def __init__(self, socket: ConnectionSocket):
         super().__init__(socket)
+        self.received_data = bytearray()
+        self.current_file = None
+        self.expected_seq_num = 0
 
     async def recv_file(self, name: str, dirpath: str, mode: int) -> None:
-        print(f"[RecvFile]: Receiving file {name} to {dirpath}")
         try:
-            while True:
-                recv_pkt = await asyncio.wait_for(
-                    self.socket.recv(), TIMEOUT_END_CONECTION
-                )
-
-                while not recv_pkt.header_data.length:
-                    recv_pkt = await asyncio.wait_for(
-                        self.socket.recv(), TIMEOUT_END_CONECTION
-                    )
-
-                self.save_data(recv_pkt.get_data(), dirpath)
-                await self.socket.send(Packet.for_ack(0, 0))
-        except asyncio.TimeoutError:
-            print("TIMEOUT in SW.recv_file")
-            return
-        except Exception as e:
-            raise RuntimeError(f"Unexpected error: {e}")
-
-    async def send_file(self, name: str, filepath: str, mode: int) -> None:
-        try:
-            with open(
-                "./storage/data.txt",
-                "rb",
-            ) as file:
-                seq_num: int = 0
-                ack_num: int = 0
-                max_retries: int = 3
-                retry_count: int
+            os.makedirs(dirpath, exist_ok=True)
+            filepath = os.path.join(dirpath, name)
+            
+            with open(filepath, "wb") as file:
+                expected_seq = 0
+                
                 while True:
-                    retry_count = 0
+                    try:
+                        packet = await asyncio.wait_for(self.socket.recv(), timeout=5.0)
+                        
+                        if packet.is_fin():
+                            print("[DEBUG] Transfer complete")
+                            break
+                            
+                        if packet.get_seq_num() == expected_seq:
+                            print(f"[DEBUG] Received valid packet seq={expected_seq}")
+                            file.write(packet.get_data())
+                            file.flush()
+                            ack = Packet.for_ack(expected_seq, 0)
+                            print(f"[DEBUG] Sending ACK for seq={expected_seq}")
+                            await self.socket.send(ack)
+                            expected_seq = 1 - expected_seq
+                        else:
+                            print(f"[DEBUG] Out-of-order packet, resending ACK for seq={1-expected_seq}")
+                            await self.socket.send(Packet.for_ack(1 - expected_seq, 0))
+                            
+                    except asyncio.TimeoutError:
+                        print("[DEBUG] No data received, ending transfer")
+                        break
+                        
+        except Exception as e:
+            print(f"[ERROR] Receive failed: {e}")
+            raise
+
+
+    def save_data(self, data: bytes) -> None:
+        """Save received data on file."""
+        if self.current_file is None:
+            raise RuntimeError("File not opened for writing.")
+        
+        self.current_file.write(data)
+        self.current_file.flush()        
+
+    async def send_file(self, name: str, dirpath: str, mode: int) -> None:
+        try:
+            filepath = os.path.join(dirpath, name)
+            
+            if not os.path.isfile(filepath):
+                raise FileNotFoundError(f"File not found: {filepath}")
+
+            with open(filepath, "rb") as file:
+                seq_num = 0
+                while True:
                     block = file.read(BLOCK_SIZE)
                     if not block:
+                        print("[DEBUG] Sending FIN packet")
+                        fin_pkt = Packet(seq_num, 0, b"", 
+                                        HeaderFlags.STOP_WAIT.value | HeaderFlags.FIN.value)
+                        await self.socket.send(fin_pkt)
                         break
 
-                    packet = Packet(
-                        seq_num, ack_num, block, HeaderFlags.STOP_WAIT.value | mode
-                    )
-
-                    while retry_count < max_retries:
-                        if await self._send_and_wait_ack(packet, timeout=1.0):
-                            break  # ACK recibido
+                    packet = Packet(seq_num, 0, block, 
+                                HeaderFlags.STOP_WAIT.value | mode)
+                    
+                    retry_count = 0
+                    while retry_count < 3:
+                        try:
+                            if await self._send_and_wait_ack(packet):
+                                seq_num = 1 - seq_num
+                                break
+                        except Exception as e:
+                            print(f"[DEBUG] Attempt {retry_count+1} failed: {e}")
+                        
                         retry_count += 1
+                        if retry_count < 3:
+                            print(f"[DEBUG] Retrying seq_num={seq_num} (attempt {retry_count+1})")
+                            await asyncio.sleep(0.5)  # Pequeña pausa entre reintentos
+                    else:
+                        raise RuntimeError(f"Failed to send packet seq_num={seq_num} after 3 attempts")
 
-        except FileNotFoundError:
-            raise FileNotFoundError(f"El archivo '{filepath}' no existe.")
         except Exception as e:
-            raise RuntimeError(f"Error inesperado: {e}")
+            print(f"[ERROR] Failed to send file: {e}")
+            raise
 
-    async def _send_and_wait_ack(self, packet: Packet, timeout: float = 1.0) -> bool:
-        print(packet)
-        await self.socket.send(packet)
-
-        try:
-            recv_pkt = await asyncio.wait_for(self.socket.recv(), timeout=timeout)
-
-            # If not ACK, keep waiting (with timeout)
-            while not recv_pkt.is_ack():
-                recv_pkt = await asyncio.wait_for(self.socket.recv(), timeout=timeout)
-
-            return True  # ACK received
-
-        except asyncio.TimeoutError:
-            print(" Timeout: No ACK received.")  # TODO for vervose
-            return False
-        except Exception as e:
-            raise RuntimeError(f"Unexpected error: {e}")
+    
+    async def _send_and_wait_ack(self, packet: Packet, timeout: float = 2.0) -> bool:
+        seq_num = packet.get_seq_num()
+        print(f"[DEBUG] Sending packet seq={seq_num}")
+        
+        for attempt in range(3):
+            try:
+                await self.socket.send(packet)
+                print(f"[DEBUG] Waiting for ACK (attempt {attempt+1})")
+                
+                while True:
+                    ack_packet = await asyncio.wait_for(self.socket.recv(), timeout)
+                    
+                    if ack_packet.is_ack() and ack_packet.get_ack_num() == seq_num:
+                        print(f"[DEBUG] Received valid ACK for seq={seq_num}")
+                        return True
+                    else:
+                        print(f"[DEBUG] Received non-ACK packet, ignoring")
+                        
+            except asyncio.TimeoutError:
+                print(f"[DEBUG] Timeout waiting for ACK, retrying...")
+                continue
+        return False
