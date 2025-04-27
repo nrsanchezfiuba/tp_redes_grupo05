@@ -24,11 +24,12 @@ class Client:
 
         connection_skt = ConnectionSocket.for_client((self.host, self.port))
         await connection_skt.init_connection()
+
         await self.handle_download(connection_skt)
 
     async def handle_download(self, connection_skt: ConnectionSocket) -> None:
         protocol = StopAndWait(connection_skt)
-        await protocol.send_file(self.name, self.dst, HeaderFlags.DOWNLOAD.value)
+        await protocol.recv_file(self.name, self.dst, HeaderFlags.DOWNLOAD.value)
 
     def run(self) -> None:
         if self.verbose:
@@ -43,20 +44,20 @@ class Client:
         else:
             print("Starting client...")
 
-        asyncio.run(self.start_client())
+        # asyncio.run(self.start_client())
 
-        # loop = asyncio.get_event_loop()
+        loop = asyncio.get_event_loop()
 
-        # try:
-        #     loop.run_until_complete(self.start_client())
-        # except KeyboardInterrupt:
-        #     print("\n[Client] Stopping client...")
+        try:
+            loop.run_until_complete(self.start_client())
+        except KeyboardInterrupt:
+            print("\n[Client] Stopping client...")
 
-        #     tasks = [t for t in asyncio.all_tasks(loop=loop) if not t.done()]
-        #     for task in tasks:
-        #         task.cancel()
+            tasks = [t for t in asyncio.all_tasks(loop=loop) if not t.done()]
+            for task in tasks:
+                task.cancel()
 
-        #     loop.run_until_complete(asyncio.gather(*tasks, return_exceptions=True))
-        # finally:
-        #     loop.run_until_complete(loop.shutdown_asyncgens())
-        #     loop.close()
+            loop.run_until_complete(asyncio.gather(*tasks, return_exceptions=True))
+        finally:
+            loop.run_until_complete(loop.shutdown_asyncgens())
+            loop.close()

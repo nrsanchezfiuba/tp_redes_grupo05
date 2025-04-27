@@ -7,6 +7,11 @@ from common.protocol.protocol import Protocol
 from common.skt.acceptor_socket import AcceptorSocket
 from common.skt.packet import HeaderFlags
 
+protocol_mapping = {
+    "SW": HeaderFlags.STOP_WAIT,
+    "GBN": HeaderFlags.GBN,
+}
+
 
 class Server:
     def __init__(self, args: Namespace) -> None:
@@ -23,26 +28,29 @@ class Server:
             self.dirpath = os.path.join(os.path.dirname(__file__), "dirpath")
         os.makedirs(self.dirpath, exist_ok=True)
 
-        header_flag = HeaderFlags.STOP_WAIT
-
-        if self.protocol == "SW":
-            header_flag = HeaderFlags.STOP_WAIT
-        elif self.protocol == "GBN":
-            header_flag = HeaderFlags.GBN
-        else:
-            raise ValueError("I dont have this protocol")
+        self.header_flag = protocol_mapping.get(self.protocol)
+        if self.header_flag is None:
+            raise ValueError(f"Unsupported protocol: {self.protocol}")
 
         self.flow_manager = FlowManager()
-        self.acceptor_skt = AcceptorSocket(header_flag, self.flow_manager)
+        self.acceptor_skt = AcceptorSocket(self.header_flag, self.flow_manager)
 
     async def start_server(self) -> None:
+        await self.acceptor_skt.bind(self.host, self.port)
         while True:
-            await self.acceptor_skt.bind(self.host, self.port)
             protocol, mode = await self.acceptor_skt.accept()
-            if mode == HeaderFlags.DOWNLOAD:
-                asyncio.run(self._handle_download(protocol))
-            elif mode == HeaderFlags.UPLOAD:
-                asyncio.run(self._handle_upload(protocol))
+
+            print("Starting action...")
+
+            handler = {
+                HeaderFlags.DOWNLOAD: self._handle_download,
+                HeaderFlags.UPLOAD: self._handle_upload,
+            }.get(mode)
+
+            if handler:
+                await handler(protocol)
+            else:
+                print(f"[Server] Unsupported mode: {mode}")
 
     def run(self) -> None:
         if self.verbose:
@@ -73,7 +81,8 @@ class Server:
             loop.close()
 
     async def _handle_download(self, protocol: Protocol) -> None:
-        await protocol.recv_file("", self.dirpath, HeaderFlags.DOWNLOAD.value)
+        print(f"[Server] Downloading file to {self.dirpath}")
+        await protocol.send_file("", self.dirpath, HeaderFlags.DOWNLOAD.value)
 
     async def _handle_upload(self, protocol: Protocol) -> None:
         pass

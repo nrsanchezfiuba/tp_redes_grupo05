@@ -39,6 +39,7 @@ class FlowManager:
         await flow_queue.put(pkt)
 
 
+# TODO check to remove laater
 if __name__ == "__main__":
     # Example usage
     flow_manager = FlowManager()

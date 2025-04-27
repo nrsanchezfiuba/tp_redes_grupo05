@@ -44,15 +44,18 @@ class AcceptorSocket:
             if self._is_protocol_invalid(pkt):
                 self._send_fin(sender)
             elif pkt.is_syn():
+                print(f"[AcceptorSocket] SYN packet received from {sender}")
                 # Hanshake the new connection
                 q: asyncio.Queue[Packet] = self.flow_manager.add_flow(sender)
                 self._send_syn_ack(sender)
                 socket = ConnectionSocket.for_server(sender, q)
+                await socket.init_connection(self.proto_type)
 
                 proto_type = pkt.get_protocol_type()
                 mode = pkt.get_mode()
 
                 if proto_type == HeaderFlags.STOP_WAIT:
+                    print(f"[AcceptorSocket] Protocol type: {proto_type}")
                     return StopAndWait(socket), mode
                 elif proto_type == HeaderFlags.GBN:
                     pass
