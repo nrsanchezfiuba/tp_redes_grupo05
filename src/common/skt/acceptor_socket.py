@@ -2,6 +2,8 @@ import asyncio
 from typing import Tuple
 
 from common.flow_manager import FlowManager
+from common.protocol.protocol import Protocol
+from common.protocol.stop_and_wait import StopAndWait
 from common.skt.connection_socket import ConnectionSocket
 from common.skt.packet import HeaderFlags, Packet
 from common.skt.udp_socket import UDPSocket
@@ -23,9 +25,9 @@ class AcceptorSocket:
         """
         Binds the socket to the specified host and port.
         """
-        await self.udp_skt.init_connection(host, port)
+        await self.udp_skt.bind_connection(host, port)
 
-    async def accept(self) -> ConnectionSocket:
+    async def accept(self) -> Tuple[Protocol, HeaderFlags]:
         """
         Accepts incomming connections,
         validates the incomming connection by:
@@ -37,13 +39,24 @@ class AcceptorSocket:
             data, sender = await self.udp_skt.recv_all()
             pkt = Packet.from_bytes(data)
 
+            print(f"[AcceptorSocket] Received packet: {pkt}")
+
             if self._is_protocol_invalid(pkt):
                 self._send_fin(sender)
             elif pkt.is_syn():
                 # Hanshake the new connection
                 q: asyncio.Queue[Packet] = self.flow_manager.add_flow(sender)
                 self._send_syn_ack(sender)
-                return ConnectionSocket(sender, q)
+                socket = ConnectionSocket.for_server(sender, q)
+
+                proto_type = pkt.get_protocol_type()
+                mode = pkt.get_mode()
+
+                if proto_type == HeaderFlags.STOP_WAIT:
+                    return StopAndWait(socket), mode
+                elif proto_type == HeaderFlags.GBN:
+                    pass
+
             elif pkt.is_fin():
                 self.flow_manager.remove_flow(sender)
                 if not pkt.is_ack():

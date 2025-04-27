@@ -22,6 +22,10 @@ class ConnectionSocket:
         self.udp_socket: UDPSocket = UDPSocket()
         self.queue: Optional[asyncio.Queue[Packet]] = queue
 
+    async def init_connection(self) -> None:
+        await self.udp_socket.init_connection(self.addr[0], self.addr[1])
+        await self.udp_socket.send_all(Packet().to_bytes(), self.addr)
+
     async def send(self, packet: Packet) -> None:
         await self.udp_socket.send_all(packet.to_bytes(), self.addr)
 
