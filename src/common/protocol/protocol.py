@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 
-from common.socket.connection_socket import ConnectionSocket
+from common.skt.connection_socket import ConnectionSocket
 
 BLOCK_SIZE = 1000
 
