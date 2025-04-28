@@ -46,7 +46,7 @@ class Server:
                 print("[Server] Connection established, starting protocol...")
 
                 # TODO: should be either GBN or SW, this is to test the protocol
-                protocol = StopAndWait(connection_skt)
+                protocol = StopAndWait(connection_skt, self.verbose)
                 await self._handle_download(protocol)
                 
                 await connection_skt.close()
