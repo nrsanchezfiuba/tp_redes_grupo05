@@ -1,11 +1,13 @@
 import asyncio
 import os
 from argparse import Namespace
+from asyncio.queues import Queue
 
 from common.flow_manager import FlowManager
 from common.protocol.protocol import Protocol
 from common.protocol.stop_and_wait import StopAndWait
 from common.skt.acceptor_socket import AcceptorSocket
+from common.skt.connection_socket import ConnectionSocket
 from common.skt.packet import HeaderFlags
 
 protocol_mapping = {
@@ -38,26 +40,26 @@ class Server:
 
     async def start_server(self) -> None:
         self.acceptor_skt.bind(self.host, self.port)
-        while True:
-            try:
-                # Wait for incoming connections
+        incomming_connections: Queue[ConnectionSocket] = asyncio.Queue()
+
+        async def acceptor_callback() -> None:
+            while True:
                 connection_skt = await self.acceptor_skt.accept()
+                await incomming_connections.put(connection_skt)
 
-                print("[Server] Connection established, starting protocol...")
+        async def handle_connection() -> None:
+            while True:
+                connection_skt = await incomming_connections.get()
+                protocol = StopAndWait(connection_skt)
+                await protocol.send_file("", self.dirpath, HeaderFlags.DOWNLOAD.value)
 
-                # TODO: should be either GBN or SW, this is to test the protocol
-                protocol = StopAndWait(connection_skt, self.verbose)
-                await self._handle_download(protocol)
+        acceptor_task = asyncio.create_task(acceptor_callback())
+        handle_task = asyncio.create_task(handle_connection())
 
-                await connection_skt.close()
-
-            except Exception as e:
-                print(f"[Server] Error handling connection: {e}")
-                continue
+        await asyncio.gather(acceptor_task, handle_task)
 
     def run(self) -> None:
         if self.verbose:
-            print("[Server] Starting server...")
             print("[Server] Starting server with the following parameters:")
             print(f"[Server] Host: {self.host}")
             print(f"[Server] Port: {self.port}")
