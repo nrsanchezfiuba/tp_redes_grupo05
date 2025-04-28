@@ -124,7 +124,7 @@ class StopAndWait(Protocol):
     async def _send_and_wait_ack(self, packet: Packet, timeout: float = 2.0) -> bool:
         seq_num = packet.get_seq_num()
         self._print_debug(f"[DEBUG] Sending packet seq={seq_num}")
-        
+
         for attempt in range(3):
             try:
                 await self.socket.send(packet)
