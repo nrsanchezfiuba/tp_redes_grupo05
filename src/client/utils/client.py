@@ -35,7 +35,7 @@ class Client:
         await self.handle_download(connection_skt)
 
     async def handle_download(self, connection_skt: ConnectionSocket) -> None:
-        protocol = StopAndWait(connection_skt)
+        protocol = StopAndWait(connection_skt, self.verbose)
         await protocol.recv_file(self.name, self.dst, HeaderFlags.DOWNLOAD.value)
 
     async def handle_upload(self, connection_skt: ConnectionSocket) -> None:

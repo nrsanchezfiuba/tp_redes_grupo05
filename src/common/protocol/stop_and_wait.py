@@ -133,7 +133,7 @@ class StopAndWait(Protocol):
                 while True:
                     ack_packet = await asyncio.wait_for(self.socket.recv(), timeout)
 
-                    if ack_packet.is_ack() and ack_packet.get_ack_num() == seq_num:
+                    if ack_packet.is_ack():
                         self._print_debug(
                             f"[DEBUG] Received valid ACK for seq={seq_num}"
                         )
