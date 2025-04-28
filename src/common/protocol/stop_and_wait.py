@@ -12,20 +12,19 @@ class StopAndWait(Protocol):
         super().__init__(socket)
 
     async def recv_file(self, name: str, dirpath: str, mode: int) -> None:
-        print(f"[RecvFile]: Receiving file {name} to {dirpath}")
         try:
             while True:
                 recv_pkt = await asyncio.wait_for(
                     self.socket.recv(), TIMEOUT_END_CONECTION
                 )
 
-                while not recv_pkt.header_data.length:
-                    recv_pkt = await asyncio.wait_for(
-                        self.socket.recv(), TIMEOUT_END_CONECTION
-                    )
+                if not recv_pkt.header_data.length:
+                    continue
+
+                print("Got data, sending ack")
+                await self.socket.send(Packet.for_ack(0, 0))
 
                 self.save_data(recv_pkt.get_data(), dirpath)
-                await self.socket.send(Packet.for_ack(0, 0))
         except asyncio.TimeoutError:
             print("TIMEOUT in SW.recv_file")
             return
@@ -54,7 +53,7 @@ class StopAndWait(Protocol):
 
                     while retry_count < max_retries:
                         if await self._send_and_wait_ack(packet, timeout=1.0):
-                            break  # ACK recibido
+                            break
                         retry_count += 1
 
         except FileNotFoundError:
@@ -66,17 +65,13 @@ class StopAndWait(Protocol):
         print(packet)
         await self.socket.send(packet)
 
+        received_ack = False
         try:
             recv_pkt = await asyncio.wait_for(self.socket.recv(), timeout=timeout)
-
-            # If not ACK, keep waiting (with timeout)
-            while not recv_pkt.is_ack():
-                recv_pkt = await asyncio.wait_for(self.socket.recv(), timeout=timeout)
-
-            return True  # ACK received
-
+            received_ack = recv_pkt.is_ack()
         except asyncio.TimeoutError:
-            print(" Timeout: No ACK received.")  # TODO for vervose
-            return False
+            print(" Timeout: No ACK received.")
         except Exception as e:
             raise RuntimeError(f"Unexpected error: {e}")
+
+        return received_ack

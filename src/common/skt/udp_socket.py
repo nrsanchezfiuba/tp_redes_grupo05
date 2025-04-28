@@ -12,7 +12,6 @@ class UDPSocket:
         self.sock.close()
 
     def bind(self, host: str, port: int) -> None:
-        print(f"[Server] Binding to {host}:{port}")
         self.sock.bind((host, port))
 
     async def recv_all(self) -> Tuple[bytes, Tuple[str, int]]:
@@ -21,6 +20,5 @@ class UDPSocket:
         return data, addr
 
     async def send_all(self, data: bytes, addr: Tuple[str, int]) -> None:
-        print(f"[*] Sending data to {addr}")
         loop = asyncio.get_running_loop()
         await loop.sock_sendto(self.sock, data, addr)
