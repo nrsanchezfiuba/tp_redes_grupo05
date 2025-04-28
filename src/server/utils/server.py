@@ -92,8 +92,12 @@ class Server:
 
             if not os.path.isfile(filepath):
                 print(f"[Server] File {filename} not found, sending FIN")
-                fin_pkt = Packet(0, 0, b"File not found",
-                                 HeaderFlags.STOP_WAIT.value | HeaderFlags.FIN.value)
+                fin_pkt = Packet(
+                    0,
+                    0,
+                    b"File not found",
+                    HeaderFlags.STOP_WAIT.value | HeaderFlags.FIN.value,
+                )
                 await protocol.socket.send(fin_pkt)
                 return
 

@@ -2,11 +2,10 @@ import asyncio
 import os
 from argparse import Namespace
 
+from common.protocol.protocol import mode_mapping, protocol_mapping
 from common.protocol.stop_and_wait import StopAndWait
 from common.skt.connection_socket import ConnectionSocket
 from common.skt.packet import HeaderFlags, Packet
-from common.protocol.protocol import protocol_mapping, mode_mapping
-
 
 
 class Client:
@@ -21,7 +20,7 @@ class Client:
         self.quiet: bool = args.quiet
         self.file_path = os.path.join(self.dst, self.name)
 
-        self.mode =  mode_mapping[selected_mode]
+        self.mode = mode_mapping[selected_mode]
         self.protocol_flag = protocol_mapping[self.protocol]
 
     async def start_client(self) -> None:
