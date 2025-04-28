@@ -8,7 +8,7 @@ from common.protocol.protocol import Protocol
 from common.protocol.stop_and_wait import StopAndWait
 from common.skt.acceptor_socket import AcceptorSocket
 from common.skt.connection_socket import ConnectionSocket
-from common.skt.packet import HeaderFlags
+from common.skt.packet import HeaderFlags, Packet
 
 protocol_mapping = {
     "SW": HeaderFlags.STOP_WAIT,
@@ -83,10 +83,26 @@ class Server:
             loop.close()
 
     async def _handle_download(self, protocol: Protocol) -> None:
-        print(f"[Server] Sending file to user from {self.dirpath}")
-        filename = "data.txt"
-        storage_path = os.path.join(self.dirpath, "storage")
-        await protocol.send_file(filename, storage_path, HeaderFlags.DOWNLOAD.value)
+        try:
+            request_packet = await protocol.socket.recv()
+            filename = request_packet.get_data().decode().strip()
+
+            storage_path = os.path.join(self.dirpath, "storage")
+            filepath = os.path.join(storage_path, filename)
+
+            if not os.path.isfile(filepath):
+                print(f"[Server] File {filename} not found, sending FIN")
+                fin_pkt = Packet(0, 0, b"File not found",
+                                 HeaderFlags.STOP_WAIT.value | HeaderFlags.FIN.value)
+                await protocol.socket.send(fin_pkt)
+                return
+
+            print(f"[Server] Sending file {filename} to user")
+            await protocol.send_file(filename, storage_path, HeaderFlags.DOWNLOAD.value)
+
+        except Exception as e:
+            print(f"[Server] Error handling download: {e}")
+            raise
 
     async def _handle_upload(self, protocol: Protocol) -> None:
         pass

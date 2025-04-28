@@ -1,6 +1,17 @@
 from abc import ABC, abstractmethod
 
 from common.skt.connection_socket import ConnectionSocket
+from common.skt.packet import HeaderFlags
+
+protocol_mapping = {
+    "SW": HeaderFlags.STOP_WAIT,
+    "GBN": HeaderFlags.GBN,
+}
+
+mode_mapping = {
+    "upload": HeaderFlags.UPLOAD,
+    "download": HeaderFlags.DOWNLOAD,
+}
 
 BLOCK_SIZE = 1000
 

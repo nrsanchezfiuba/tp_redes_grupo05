@@ -22,11 +22,28 @@ class StopAndWait(Protocol):
 
     async def recv_file(self, name: str, dirpath: str, mode: int) -> None:
         try:
+            first_packet = await asyncio.wait_for(self.socket.recv(), timeout=5.0)
+
+            if first_packet.is_fin():
+                print(f"[ERROR] File '{name}' not found on server")
+                return
+
             os.makedirs(dirpath, exist_ok=True)
             filepath = os.path.join(dirpath, name)
 
             with open(filepath, "wb") as file:
-                expected_seq = 0
+                if first_packet.get_seq_num() == 0:
+                    self._print_debug("[DEBUG] Received valid packet seq=0")
+                    file.write(first_packet.get_data())
+                    file.flush()
+                    ack = Packet.for_ack(0, 0)
+                    self._print_debug("[DEBUG] Sending ACK for seq=0")
+                    await self.socket.send(ack)
+                    expected_seq = 1
+                else:
+                    self._print_debug("[DEBUG] Out-of-order first packet")
+                    await self.socket.send(Packet.for_ack(1, 0))
+                    expected_seq = 0
 
                 while True:
                     try:
@@ -37,26 +54,21 @@ class StopAndWait(Protocol):
                             break
 
                         if packet.get_seq_num() == expected_seq:
-                            self._print_debug(
-                                f"[DEBUG] Received valid packet seq={expected_seq}"
-                            )
+                            self._print_debug(f"[DEBUG] Received valid packet seq={expected_seq}")
                             file.write(packet.get_data())
                             file.flush()
                             ack = Packet.for_ack(expected_seq, 0)
-                            self._print_debug(
-                                f"[DEBUG] Sending ACK for seq={expected_seq}"
-                            )
+                            self._print_debug(f"[DEBUG] Sending ACK for seq={expected_seq}")
                             await self.socket.send(ack)
                             expected_seq = 1 - expected_seq
                         else:
-                            self._print_debug(
-                                f"[DEBUG] Out-of-order packet, resending ACK for seq={1-expected_seq}"
-                            )
+                            self._print_debug(f"[DEBUG] Out-of-order packet, resending ACK for seq={1 - expected_seq}")
                             await self.socket.send(Packet.for_ack(1 - expected_seq, 0))
 
                     except asyncio.TimeoutError:
                         self._print_debug("[DEBUG] No data received, ending transfer")
                         break
+
         except Exception as e:
             print(f"[ERROR] Receive failed: {e}")
             raise

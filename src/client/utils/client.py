@@ -4,16 +4,13 @@ from argparse import Namespace
 
 from common.protocol.stop_and_wait import StopAndWait
 from common.skt.connection_socket import ConnectionSocket
-from common.skt.packet import HeaderFlags
+from common.skt.packet import HeaderFlags, Packet
+from common.protocol.protocol import protocol_mapping, mode_mapping
 
-protocol_mapping = {
-    "SW": HeaderFlags.STOP_WAIT,
-    "GBN": HeaderFlags.GBN,
-}
 
 
 class Client:
-    def __init__(self, args: Namespace) -> None:
+    def __init__(self, args: Namespace, selected_mode: str) -> None:
         self.args: Namespace = args
         self.host: str = args.host
         self.port: int = args.port
@@ -24,6 +21,7 @@ class Client:
         self.quiet: bool = args.quiet
         self.file_path = os.path.join(self.dst, self.name)
 
+        self.mode =  mode_mapping[selected_mode]
         self.protocol_flag = protocol_mapping[self.protocol]
 
     async def start_client(self) -> None:
@@ -36,6 +34,9 @@ class Client:
 
     async def handle_download(self, connection_skt: ConnectionSocket) -> None:
         protocol = StopAndWait(connection_skt, self.verbose)
+
+        request_packet = Packet(0, 0, self.name.encode(), HeaderFlags.STOP_WAIT.value)
+        await connection_skt.send(request_packet)
         await protocol.recv_file(self.name, self.dst, HeaderFlags.DOWNLOAD.value)
 
     async def handle_upload(self, connection_skt: ConnectionSocket) -> None:
