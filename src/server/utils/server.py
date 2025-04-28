@@ -40,7 +40,6 @@ class Server:
 
     async def start_server(self) -> None:
         self.acceptor_skt.bind(self.host, self.port)
-
         incomming_connections: Queue[ConnectionSocket] = asyncio.Queue()
 
         async def acceptor_callback() -> None:
@@ -85,7 +84,9 @@ class Server:
 
     async def _handle_download(self, protocol: Protocol) -> None:
         print(f"[Server] Sending file to user from {self.dirpath}")
-        await protocol.send_file("", self.dirpath, HeaderFlags.DOWNLOAD.value)
+        filename = "data.txt"
+        storage_path = os.path.join(self.dirpath, "storage")
+        await protocol.send_file(filename, storage_path, HeaderFlags.DOWNLOAD.value)
 
     async def _handle_upload(self, protocol: Protocol) -> None:
         pass
