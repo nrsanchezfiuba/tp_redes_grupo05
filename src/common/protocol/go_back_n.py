@@ -1,4 +1,7 @@
+import asyncio
 import os
+import random
+from collections import deque
 
 from common.protocol.protocol import BLOCK_SIZE, Protocol
 from common.skt.connection_socket import ConnectionSocket
@@ -6,6 +9,7 @@ from common.skt.packet import MAX_SEQ_NUM, HeaderFlags, Packet
 
 TIMEOUT_END_CONECTION: float = 5
 WINDOW_SIZE: int = 5
+RETRANSMIT_TIMEOUT: float = 0.5
 
 
 class GoBackN(Protocol):
@@ -15,6 +19,8 @@ class GoBackN(Protocol):
         self.current_file = None
         self.expected_seq_num = 0
         self.verbose = verbose
+        self.unacked_pkts: deque[Packet] = deque()
+        self.timer = None
 
     def _print_debug(self, message: str) -> None:
         if self.verbose:
@@ -63,25 +69,45 @@ class GoBackN(Protocol):
         with open(filepath, "rb") as file:
             self.base = 0
             self.next_seq_num = 0
+            try:
+                while True:
+                    if (self.next_seq_num - self.base) % MAX_SEQ_NUM < WINDOW_SIZE:
+                        print(filepath)
+                        block = file.read(BLOCK_SIZE)
+                        if not block:
+                            break
 
-            while True:
-                if (self.next_seq_num - self.base) % MAX_SEQ_NUM < WINDOW_SIZE:
-                    block = file.read(BLOCK_SIZE)
-                    if not block:
-                        break
+                        packet = self._create_data_packet(
+                            self.next_seq_num, 0, block, mode
+                        )
+                        await self.socket.send(packet)
 
-                    packet = self._create_data_packet(self.next_seq_num, 0, block, mode)
-                    await self.socket.send(packet)
+                        self.unacked_pkts.append(packet)
+                        if (
+                            self.base == self.next_seq_num
+                        ):  # Start timer if first packet in window range
+                            self._start_timer()
 
-                    self.next_seq_num += 1
-                    self.next_seq_num %= MAX_SEQ_NUM
-                else:
-                    ack_packet = await self.socket.recv()
-                    if self._process_ack_packet(ack_packet, self.base):
-                        self.base += 1
-                        self.base %= MAX_SEQ_NUM
+                        self.next_seq_num += 1
+                        self.next_seq_num %= MAX_SEQ_NUM
+                    else:
+                        ack_packet = await self.socket.recv()
+                        if self._process_ack_packet(ack_packet, self.base):
+                            await asyncio.sleep(random.uniform(0, 3))
+                            if ack_packet.get_ack_num() == self.base:
+                                self._print_debug(
+                                    "[DEBUG] Received first ACK from the start of the window"
+                                )
+                                self._stop_timer()
+                                self.unacked_pkts.popleft()
+                            self.base += 1
+                            self.base %= MAX_SEQ_NUM
 
-            await self._send_fin_packet(0)
+                await self._send_fin_packet(0)
+            finally:
+                # Cleanup tasks
+                self.unacked_pkts.clear()
+                self._stop_timer()
 
     async def _send_fin_packet(self, seq_num: int) -> None:
         """Send FIN packet to signal end of transmission."""
@@ -100,6 +126,7 @@ class GoBackN(Protocol):
         """Create a data packet with the given sequence number."""
         return Packet(seq_num, ack_num, data, HeaderFlags.GBN.value | mode)
 
+    # hashtag polemico (o_o)
     def _process_ack_packet(self, ack_packet: Packet, expected_seq: int) -> bool:
         """Process received ACK packet and return True if valid."""
         if ack_packet.is_ack():
@@ -129,3 +156,31 @@ class GoBackN(Protocol):
     def _is_file_not_found(self, packet: Packet) -> bool:
         """Check if packet indicates file not found('fin' flag is sent)."""
         return packet.is_fin()
+
+    def _start_timer(self) -> None:
+        """Start or restart the timer"""
+        self.timer = asyncio.create_task(self._timeout_handler())  # type: ignore
+
+    def _stop_timer(self) -> None:
+        """Stop the timer"""
+        if self.timer:
+            self.timer.cancel()
+            self.timer = None
+
+    async def _timeout_handler(self) -> None:
+        """Handle timeout by retransmitting all unacked packets"""
+        try:
+            await asyncio.sleep(RETRANSMIT_TIMEOUT)
+            self._print_debug(
+                f"[TIMEOUT] Retransmitting window: {self.base} to {self.next_seq_num}"
+            )
+
+            # Create a local copy of unacked packets to avoid mutation during send
+            packets_to_resend = list(self.unacked_pkts)
+            for pkt in packets_to_resend:
+                self._print_debug(f"[DEBUG] Resending packet seq={pkt.get_seq_num()}")
+                await self.socket.send(pkt)
+
+            self._start_timer()  # Restart timer
+        except asyncio.CancelledError:
+            self._print_debug("[DEBUG] Timer cancelled and reset")
