@@ -51,7 +51,7 @@ class Server:
             while True:
                 connection_skt = await incomming_connections.get()
                 protocol = StopAndWait(connection_skt, self.verbose)
-                await self._handle_download(protocol)
+                asyncio.create_task(self._handle_download(protocol))
 
         acceptor_task = asyncio.create_task(acceptor_callback())
         handle_task = asyncio.create_task(handle_connection())
