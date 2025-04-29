@@ -4,6 +4,8 @@ from typing import NamedTuple
 
 HEADER_PACK_FORMAT: str = "!HHH"  # Big-endian unsigned short (2 bytes)
 
+MAX_SEQ_NUM: int = 1024
+
 
 class HeaderMasks(Enum):
     PROTOCOLTYPE = 0xC000  # 1100_0000_0000_0000
@@ -42,8 +44,8 @@ class HeaderData(NamedTuple):
 class Packet:
 
     @classmethod
-    def for_ack(cls, seq_num: int, ack_num: int) -> "Packet":
-        return cls(seq_num, ack_num, b"", HeaderFlags.ACK.value | HeaderFlags.GBN.value)
+    def for_ack(cls, seq_num: int, ack_num: int, protocol: HeaderFlags) -> "Packet":
+        return cls(seq_num, ack_num, b"", HeaderFlags.ACK.value | protocol.value)
 
     @classmethod
     def from_bytes(cls, packet: bytes) -> "Packet":

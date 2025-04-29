@@ -2,7 +2,7 @@ import os
 
 from common.protocol.protocol import BLOCK_SIZE, Protocol
 from common.skt.connection_socket import ConnectionSocket
-from common.skt.packet import HeaderFlags, Packet
+from common.skt.packet import MAX_SEQ_NUM, HeaderFlags, Packet
 
 TIMEOUT_END_CONECTION: float = 5
 WINDOW_SIZE: int = 5
@@ -35,7 +35,7 @@ class GoBackN(Protocol):
                         file.flush()
                         await self._send_ack(0, self.expected_seq_num)
                         self.expected_seq_num += 1
-                        self.expected_seq_num %= 2**10
+                        self.expected_seq_num %= MAX_SEQ_NUM
                     elif packet.is_fin():
                         break
 
@@ -65,8 +65,7 @@ class GoBackN(Protocol):
             self.next_seq_num = 0
 
             while True:
-                print(f"NEXT_SEQ_NUM={self.next_seq_num}, BASE={self.base}")
-                if (self.next_seq_num - self.base) % (2**10) < WINDOW_SIZE:
+                if (self.next_seq_num - self.base) % MAX_SEQ_NUM < WINDOW_SIZE:
                     block = file.read(BLOCK_SIZE)
                     if not block:
                         break
@@ -75,12 +74,12 @@ class GoBackN(Protocol):
                     await self.socket.send(packet)
 
                     self.next_seq_num += 1
-                    self.next_seq_num %= 2**10
+                    self.next_seq_num %= MAX_SEQ_NUM
                 else:
                     ack_packet = await self.socket.recv()
                     if self._process_ack_packet(ack_packet, self.base):
                         self.base += 1
-                        self.base %= 2**10
+                        self.base %= MAX_SEQ_NUM
 
             await self._send_fin_packet(0)
 
@@ -119,7 +118,7 @@ class GoBackN(Protocol):
 
     async def _send_ack(self, seq_num: int, ack_num: int) -> None:
         """Send an ACK for the given sequence number."""
-        ack = Packet.for_ack(seq_num, ack_num)
+        ack = Packet.for_ack(seq_num, ack_num, HeaderFlags.GBN)
         self._print_debug(f"[DEBUG] Sending ACK for seq={seq_num}")
         await self.socket.send(ack)
 

@@ -27,34 +27,37 @@ class Client:
     async def start_client(self) -> None:
         print(f"[Client] Connecting to {self.host}:{self.port}")
 
+        if not self.protocol_flag:
+            raise ValueError("Wrong Protocol")
+
         connection_skt = ConnectionSocket.for_client((self.host, self.port))
         await connection_skt.connect(self.protocol_flag)
 
-        protocol: Protocol = StopAndWait(connection_skt, self.verbose)
+        protocol: Protocol = GoBackN(connection_skt, self.verbose)
 
         if self.protocol == "SW":
             protocol = StopAndWait(connection_skt, self.verbose)
         elif self.protocol == "GBN":
             protocol = GoBackN(connection_skt, self.verbose)
 
+        print(self.protocol, protocol)
+
         if self.mode.value == HeaderFlags.UPLOAD.value:
             print("[Client] Uploading file...")
             await self.handle_upload(connection_skt, protocol)
-
         elif self.mode.value == HeaderFlags.DOWNLOAD.value:
             print("[Client] Downloading file...")
             await self.handle_download(connection_skt, protocol)
-
         else:
             print("[Client] Invalid mode")
 
     async def _send_mode_and_name(
         self, connection_skt: ConnectionSocket, header_flag: HeaderFlags
     ) -> None:
-        mode_packet = Packet(0, 0, b"", HeaderFlags.GBN.value | header_flag.value)
+        mode_packet = Packet(0, 0, b"", header_flag.value | self.protocol_flag.value)
         await connection_skt.send(mode_packet)
 
-        name_packet = Packet(0, 0, self.name.encode(), HeaderFlags.GBN.value)
+        name_packet = Packet(0, 0, self.name.encode(), self.protocol_flag.value)
         await connection_skt.send(name_packet)
 
     async def handle_download(

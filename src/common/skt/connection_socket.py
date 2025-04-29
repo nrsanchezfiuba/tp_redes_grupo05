@@ -23,6 +23,7 @@ class ConnectionSocket:
 
     async def connect(self, protocol: HeaderFlags) -> None:
         await self.send(Packet(flags=HeaderFlags.SYN.value | protocol.value))
+        print(protocol.value)
         pkt = await self.recv()
         if pkt.is_syn() and pkt.is_ack():
             print(f"[ConnectionSocket] Connection established with {self.addr}")
@@ -47,6 +48,4 @@ class ConnectionSocket:
         return recv_pkt
 
     async def close(self) -> None:
-        # We pray to garbage collector
-        # await self.queue.shutdown(immediate=True)
         pass

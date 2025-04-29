@@ -26,12 +26,14 @@ class Server:
             self.dirpath = os.path.join(os.path.dirname(__file__), self.dirpath)
         os.makedirs(self.dirpath, exist_ok=True)
 
-        self.header_flag = protocol_mapping.get(self.protocol)
-        if self.header_flag is None:
-            raise ValueError(f"Unsupported protocol: {self.protocol}")
+        self.protocol_flag: HeaderFlags = (
+            protocol_mapping.get(self.protocol) or HeaderFlags.GBN
+        )
+        # if self.protocol_flag is None:
+        #     raise ValueError(f"Unsupported protocol: {self.protocol}")
 
         self.flow_manager = FlowManager()
-        self.acceptor_skt = AcceptorSocket(self.header_flag, self.flow_manager)
+        self.acceptor_skt = AcceptorSocket(self.protocol_flag, self.flow_manager)
 
     async def start_server(self) -> None:
         self.acceptor_skt.bind(self.host, self.port)
@@ -102,7 +104,7 @@ class Server:
                     0,
                     0,
                     b"File not found",
-                    HeaderFlags.STOP_WAIT.value | HeaderFlags.FIN.value,
+                    self.protocol_flag.value | HeaderFlags.FIN.value,
                 )
                 await protocol.socket.send(fin_pkt)
                 return
@@ -124,7 +126,7 @@ class Server:
                     0,
                     0,
                     b"Invalid filename",
-                    HeaderFlags.STOP_WAIT.value | HeaderFlags.FIN.value,
+                    self.protocol_flag.value | HeaderFlags.FIN.value,
                 )
                 await protocol.socket.send(error_pkt)
                 return

@@ -210,7 +210,7 @@ class StopAndWait(Protocol):
 
     async def _send_ack(self, seq_num: int) -> None:
         """Send an ACK for the given sequence number."""
-        ack = Packet.for_ack(seq_num, 0)
+        ack = Packet.for_ack(seq_num, 0, HeaderFlags.STOP_WAIT)
         self._print_debug(f"[DEBUG] Sending ACK for seq={seq_num}")
         await self.socket.send(ack)
 
