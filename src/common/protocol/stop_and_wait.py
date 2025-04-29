@@ -109,7 +109,7 @@ class StopAndWait(Protocol):
     async def _process_data_packet(  # type: ignore
         self, file, packet: Packet, expected_seq: int
     ) -> int:
-        """Process a data packet and return next expected sequence number."""
+        """Process a data packet, WRITES to file and return next expected sequence number."""
         if packet.get_seq_num() == expected_seq:
             self._print_debug(f"[DEBUG] Received valid packet seq={expected_seq}")
             file.write(packet.get_data())
@@ -122,19 +122,6 @@ class StopAndWait(Protocol):
             )
             await self._send_ack(1 - expected_seq)
             return expected_seq
-
-    async def _send_ack(self, seq_num: int) -> None:
-        """Send an ACK for the given sequence number."""
-        ack = Packet.for_ack(seq_num, 0)
-        self._print_debug(f"[DEBUG] Sending ACK for seq={seq_num}")
-        await self.socket.send(ack)
-
-    def _validate_file_path(self, dirpath: str, name: str) -> str:
-        """Validate and return full file path."""
-        filepath = os.path.join(dirpath, name)
-        if not os.path.isfile(filepath):
-            raise FileNotFoundError(f"File not found: {filepath}")
-        return filepath
 
     async def _send_file_contents(self, filepath: str, mode: int) -> None:
         """Send file contents with stop-and-wait protocol."""
@@ -184,7 +171,6 @@ class StopAndWait(Protocol):
         )
 
     def _log_retry_attempt(self, attempt: int, seq_num: int) -> None:
-        """Log retry attempts."""
         if attempt < 2:
             self._print_debug(
                 f"[DEBUG] Retrying seq_num={seq_num} (attempt {attempt + 2})"
@@ -215,10 +201,23 @@ class StopAndWait(Protocol):
             self._print_debug("[DEBUG] Received non-ACK packet, ignoring")
             return False
 
+    def _validate_file_path(self, dirpath: str, name: str) -> str:
+        """Validate and return full file path."""
+        filepath = os.path.join(dirpath, name)
+        if not os.path.isfile(filepath):
+            raise FileNotFoundError(f"File not found: {filepath}")
+        return filepath
+
+    async def _send_ack(self, seq_num: int) -> None:
+        """Send an ACK for the given sequence number."""
+        ack = Packet.for_ack(seq_num, 0)
+        self._print_debug(f"[DEBUG] Sending ACK for seq={seq_num}")
+        await self.socket.send(ack)
+
     def _is_transfer_complete(self, packet: Packet) -> bool:
-        """Check if packet indicates transfer completion."""
+        """Check if packet indicates transfer completion('fin' flag is sent) ."""
         return packet.is_fin()
 
     def _is_file_not_found(self, packet: Packet) -> bool:
-        """Check if packet indicates file not found."""
+        """Check if packet indicates file not found('fin' flag is sent)."""
         return packet.is_fin()

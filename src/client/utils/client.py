@@ -29,17 +29,37 @@ class Client:
         connection_skt = ConnectionSocket.for_client((self.host, self.port))
         await connection_skt.connect(self.protocol_flag)
 
-        await self.handle_download(connection_skt)
+        if self.mode.value == HeaderFlags.UPLOAD.value:
+            print("[Client] Uploading file...")
+            await self.handle_upload(connection_skt)
+
+        elif self.mode.value == HeaderFlags.DOWNLOAD.value:
+            print("[Client] Downloading file...")
+            await self.handle_download(connection_skt)
+
+        else:
+            print("[Client] Invalid mode")
+
+    async def _send_mode_and_name(
+        self, connection_skt: ConnectionSocket, header_flag: HeaderFlags
+    ) -> None:
+        mode_packet = Packet(0, 0, b"", HeaderFlags.STOP_WAIT.value | header_flag.value)
+        await connection_skt.send(mode_packet)
+
+        name_packet = Packet(0, 0, self.name.encode(), HeaderFlags.STOP_WAIT.value)
+        await connection_skt.send(name_packet)
 
     async def handle_download(self, connection_skt: ConnectionSocket) -> None:
         protocol = StopAndWait(connection_skt, self.verbose)
-
-        request_packet = Packet(0, 0, self.name.encode(), HeaderFlags.STOP_WAIT.value)
-        await connection_skt.send(request_packet)
+        await self._send_mode_and_name(connection_skt, HeaderFlags.DOWNLOAD)
         await protocol.recv_file(self.name, self.dst, HeaderFlags.DOWNLOAD.value)
+        print(f"[Client] File {self.name} downloaded successfully")
 
     async def handle_upload(self, connection_skt: ConnectionSocket) -> None:
-        pass
+        protocol = StopAndWait(connection_skt, self.verbose)
+        await self._send_mode_and_name(connection_skt, HeaderFlags.UPLOAD)
+        await protocol.send_file(self.name, self.dst, HeaderFlags.UPLOAD.value)
+        print(f"[Client] File {self.name} uploaded successfully")
 
     def run(self) -> None:
         if self.verbose:
@@ -49,6 +69,7 @@ class Client:
             print(f"Destination path: {self.dst}")
             print(f"Filename: {self.name}")
             print(f"Protocol: {self.protocol}")
+            print(f"Mode: {self.mode.value}")
         elif self.quiet:
             pass
         else:
