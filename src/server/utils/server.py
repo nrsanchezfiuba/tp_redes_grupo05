@@ -86,8 +86,7 @@ class Server:
             request_packet = await protocol.socket.recv()
             filename = request_packet.get_data().decode().strip()
 
-            storage_path = os.path.join(self.dirpath, "storage")
-            filepath = os.path.join(storage_path, filename)
+            filepath = os.path.join(self.dirpath, filename)
 
             if not os.path.isfile(filepath):
                 print(f"[Server] File {filename} not found, sending FIN")
@@ -101,7 +100,7 @@ class Server:
                 return
 
             print(f"[Server] Sending file {filename} to user")
-            await protocol.send_file(filename, storage_path, HeaderFlags.DOWNLOAD.value)
+            await protocol.send_file(filename, self.dirpath, HeaderFlags.DOWNLOAD.value)
 
         except Exception as e:
             print(f"[Server] Error handling download: {e}")
@@ -122,11 +121,10 @@ class Server:
                 await protocol.socket.send(error_pkt)
                 return
 
-            storage_path = os.path.join(self.dirpath, "storage")
-            os.makedirs(storage_path, exist_ok=True)
+            os.makedirs(self.dirpath, exist_ok=True)
 
             print(f"[Server] Receiving file {filename} from client")
-            await protocol.recv_file(filename, storage_path, HeaderFlags.UPLOAD.value)
+            await protocol.recv_file(filename, self.dirpath, HeaderFlags.UPLOAD.value)
             print(f"[Server] File {filename} received successfully")
 
         except Exception as e:
