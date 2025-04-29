@@ -4,6 +4,7 @@ from argparse import Namespace
 from asyncio.queues import Queue
 
 from common.flow_manager import FlowManager
+from common.protocol.go_back_n import GoBackN
 from common.protocol.protocol import Protocol, protocol_mapping
 from common.protocol.stop_and_wait import StopAndWait
 from common.skt.acceptor_socket import AcceptorSocket
@@ -22,7 +23,7 @@ class Server:
         self.quiet: bool = args.quiet
 
         if not self.dirpath:
-            self.dirpath = os.path.join(os.path.dirname(__file__), "dirpath")
+            self.dirpath = os.path.join(os.path.dirname(__file__), self.dirpath)
         os.makedirs(self.dirpath, exist_ok=True)
 
         self.header_flag = protocol_mapping.get(self.protocol)
@@ -44,12 +45,19 @@ class Server:
         async def handle_connection() -> None:
             while True:
                 connection_skt = await incoming_connections.get()
-                protocol = StopAndWait(connection_skt, self.verbose)
+
+                protocol: Protocol = GoBackN(connection_skt, self.verbose)
+
+                if self.protocol == "SW":
+                    protocol = StopAndWait(connection_skt, self.verbose)
+                elif self.protocol == "GBN":
+                    protocol = GoBackN(connection_skt, self.verbose)
 
                 mode_packet = await connection_skt.recv()
+
                 if mode_packet.get_mode() == HeaderFlags.UPLOAD:
                     asyncio.create_task(self._handle_upload(protocol))
-                else:
+                elif mode_packet.get_mode() == HeaderFlags.DOWNLOAD:
                     asyncio.create_task(self._handle_download(protocol))
 
         acceptor_task = asyncio.create_task(acceptor_callback())
@@ -86,8 +94,7 @@ class Server:
             request_packet = await protocol.socket.recv()
             filename = request_packet.get_data().decode().strip()
 
-            storage_path = os.path.join(self.dirpath, "storage")
-            filepath = os.path.join(storage_path, filename)
+            filepath = os.path.join(self.dirpath, filename)
 
             if not os.path.isfile(filepath):
                 print(f"[Server] File {filename} not found, sending FIN")
@@ -101,7 +108,7 @@ class Server:
                 return
 
             print(f"[Server] Sending file {filename} to user")
-            await protocol.send_file(filename, storage_path, HeaderFlags.DOWNLOAD.value)
+            await protocol.send_file(filename, self.dirpath, HeaderFlags.DOWNLOAD.value)
 
         except Exception as e:
             print(f"[Server] Error handling download: {e}")

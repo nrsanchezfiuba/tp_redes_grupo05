@@ -43,7 +43,7 @@ class Packet:
 
     @classmethod
     def for_ack(cls, seq_num: int, ack_num: int) -> "Packet":
-        return cls(seq_num, ack_num, b"", HeaderFlags.ACK.value)
+        return cls(seq_num, ack_num, b"", HeaderFlags.ACK.value | HeaderFlags.GBN.value)
 
     @classmethod
     def from_bytes(cls, packet: bytes) -> "Packet":

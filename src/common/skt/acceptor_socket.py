@@ -58,18 +58,18 @@ class AcceptorSocket:
 
     async def _send_syn_ack(self, sender: Tuple[str, int]) -> None:
         syn_ack_pkt = Packet(
-            flags=HeaderFlags.SYN.value | HeaderFlags.ACK.value,
+            flags=HeaderFlags.SYN.value | HeaderFlags.ACK.value | HeaderFlags.GBN.value,
         )
         await self.udp_skt.send_all(syn_ack_pkt.to_bytes(), sender)
 
     async def _send_fin_ack(self, sender: Tuple[str, int]) -> None:
         fin_ack_pkt = Packet(
-            flags=HeaderFlags.FIN.value | HeaderFlags.ACK.value,
+            flags=HeaderFlags.FIN.value | HeaderFlags.ACK.value | HeaderFlags.GBN.value,
         )
         await self.udp_skt.send_all(fin_ack_pkt.to_bytes(), sender)
 
     async def _send_fin(self, sender: Tuple[str, int]) -> None:
         fin_pkt = Packet(
-            flags=HeaderFlags.FIN.value,
+            flags=HeaderFlags.FIN.value | HeaderFlags.GBN.value,
         )
         await self.udp_skt.send_all(fin_pkt.to_bytes(), sender)

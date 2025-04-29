@@ -2,7 +2,8 @@ import asyncio
 import os
 from argparse import Namespace
 
-from common.protocol.protocol import mode_mapping, protocol_mapping
+from common.protocol.go_back_n import GoBackN
+from common.protocol.protocol import Protocol, mode_mapping, protocol_mapping
 from common.protocol.stop_and_wait import StopAndWait
 from common.skt.connection_socket import ConnectionSocket
 from common.skt.packet import HeaderFlags, Packet
@@ -29,13 +30,20 @@ class Client:
         connection_skt = ConnectionSocket.for_client((self.host, self.port))
         await connection_skt.connect(self.protocol_flag)
 
+        protocol: Protocol = StopAndWait(connection_skt, self.verbose)
+
+        if self.protocol == "SW":
+            protocol = StopAndWait(connection_skt, self.verbose)
+        elif self.protocol == "GBN":
+            protocol = GoBackN(connection_skt, self.verbose)
+
         if self.mode.value == HeaderFlags.UPLOAD.value:
             print("[Client] Uploading file...")
-            await self.handle_upload(connection_skt)
+            await self.handle_upload(connection_skt, protocol)
 
         elif self.mode.value == HeaderFlags.DOWNLOAD.value:
             print("[Client] Downloading file...")
-            await self.handle_download(connection_skt)
+            await self.handle_download(connection_skt, protocol)
 
         else:
             print("[Client] Invalid mode")
@@ -43,20 +51,22 @@ class Client:
     async def _send_mode_and_name(
         self, connection_skt: ConnectionSocket, header_flag: HeaderFlags
     ) -> None:
-        mode_packet = Packet(0, 0, b"", HeaderFlags.STOP_WAIT.value | header_flag.value)
+        mode_packet = Packet(0, 0, b"", HeaderFlags.GBN.value | header_flag.value)
         await connection_skt.send(mode_packet)
 
-        name_packet = Packet(0, 0, self.name.encode(), HeaderFlags.STOP_WAIT.value)
+        name_packet = Packet(0, 0, self.name.encode(), HeaderFlags.GBN.value)
         await connection_skt.send(name_packet)
 
-    async def handle_download(self, connection_skt: ConnectionSocket) -> None:
-        protocol = StopAndWait(connection_skt, self.verbose)
+    async def handle_download(
+        self, connection_skt: ConnectionSocket, protocol: Protocol
+    ) -> None:
         await self._send_mode_and_name(connection_skt, HeaderFlags.DOWNLOAD)
         await protocol.recv_file(self.name, self.dst, HeaderFlags.DOWNLOAD.value)
         print(f"[Client] File {self.name} downloaded successfully")
 
-    async def handle_upload(self, connection_skt: ConnectionSocket) -> None:
-        protocol = StopAndWait(connection_skt, self.verbose)
+    async def handle_upload(
+        self, connection_skt: ConnectionSocket, protocol: Protocol
+    ) -> None:
         await self._send_mode_and_name(connection_skt, HeaderFlags.UPLOAD)
         await protocol.send_file(self.name, self.dst, HeaderFlags.UPLOAD.value)
         print(f"[Client] File {self.name} uploaded successfully")
