@@ -2,18 +2,14 @@ import asyncio
 import os
 from argparse import Namespace
 
+from common.protocol.protocol import mode_mapping, protocol_mapping
 from common.protocol.stop_and_wait import StopAndWait
 from common.skt.connection_socket import ConnectionSocket
-from common.skt.packet import HeaderFlags
-
-protocol_mapping = {
-    "SW": HeaderFlags.STOP_WAIT,
-    "GBN": HeaderFlags.GBN,
-}
+from common.skt.packet import HeaderFlags, Packet
 
 
 class Client:
-    def __init__(self, args: Namespace) -> None:
+    def __init__(self, args: Namespace, selected_mode: str) -> None:
         self.args: Namespace = args
         self.host: str = args.host
         self.port: int = args.port
@@ -24,6 +20,7 @@ class Client:
         self.quiet: bool = args.quiet
         self.file_path = os.path.join(self.dst, self.name)
 
+        self.mode = mode_mapping[selected_mode]
         self.protocol_flag = protocol_mapping[self.protocol]
 
     async def start_client(self) -> None:
@@ -32,14 +29,46 @@ class Client:
         connection_skt = ConnectionSocket.for_client((self.host, self.port))
         await connection_skt.connect(self.protocol_flag)
 
-        await self.handle_download(connection_skt)
+        if self.mode.value == HeaderFlags.UPLOAD.value:
+            print("[Client] Uploading file...")
+            await self.handle_upload(connection_skt)
+
+        elif self.mode.value == HeaderFlags.DOWNLOAD.value:
+            print("[Client] Downloading file...")
+            await self.handle_download(connection_skt)
+
+        else:
+            print("[Client] Invalid mode")
+
+    async def _send_mode_and_name(
+        self, connection_skt: ConnectionSocket, header_flag: HeaderFlags
+    ) -> None:
+        mode_packet = Packet(0, 0, b"", HeaderFlags.STOP_WAIT.value | header_flag.value)
+        await connection_skt.send(mode_packet)
+
+        name_packet = Packet(0, 0, self.name.encode(), HeaderFlags.STOP_WAIT.value)
+        await connection_skt.send(name_packet)
 
     async def handle_download(self, connection_skt: ConnectionSocket) -> None:
         protocol = StopAndWait(connection_skt, self.verbose)
-        await protocol.recv_file(self.name, self.dst, HeaderFlags.DOWNLOAD.value)
+        await self._send_mode_and_name(connection_skt, HeaderFlags.DOWNLOAD)
+
+        try:
+            success = await protocol.recv_file(
+                self.name, self.dst, HeaderFlags.DOWNLOAD.value
+            )
+            if success:
+                print(f"[Client] File {self.name} downloaded successfully")
+            else:
+                print(f"[ERROR] Failed to download file {self.name}")
+        except Exception as e:
+            print(f"[ERROR] Download failed: {e}")
 
     async def handle_upload(self, connection_skt: ConnectionSocket) -> None:
-        pass
+        protocol = StopAndWait(connection_skt, self.verbose)
+        await self._send_mode_and_name(connection_skt, HeaderFlags.UPLOAD)
+        await protocol.send_file(self.name, self.dst, HeaderFlags.UPLOAD.value)
+        print(f"[Client] File {self.name} uploaded successfully")
 
     def run(self) -> None:
         if self.verbose:
@@ -49,6 +78,7 @@ class Client:
             print(f"Destination path: {self.dst}")
             print(f"Filename: {self.name}")
             print(f"Protocol: {self.protocol}")
+            print(f"Mode: {self.mode.value}")
         elif self.quiet:
             pass
         else:

@@ -9,7 +9,7 @@ def main() -> None:
         include_destination=True,
         include_filename=True,
     )
-    client = Client(args_parser.get_arguments())
+    client = Client(args_parser.get_arguments(), "download")
     client.run()
 
 

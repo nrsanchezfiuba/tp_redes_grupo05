@@ -4,16 +4,11 @@ from argparse import Namespace
 from asyncio.queues import Queue
 
 from common.flow_manager import FlowManager
-from common.protocol.protocol import Protocol
+from common.protocol.protocol import Protocol, protocol_mapping
 from common.protocol.stop_and_wait import StopAndWait
 from common.skt.acceptor_socket import AcceptorSocket
 from common.skt.connection_socket import ConnectionSocket
-from common.skt.packet import HeaderFlags
-
-protocol_mapping = {
-    "SW": HeaderFlags.STOP_WAIT,
-    "GBN": HeaderFlags.GBN,
-}
+from common.skt.packet import HeaderFlags, Packet
 
 
 class Server:
@@ -26,7 +21,6 @@ class Server:
         self.verbose: bool = args.verbose
         self.quiet: bool = args.quiet
 
-        # Initialize the dirpath folder path
         if not self.dirpath:
             self.dirpath = os.path.join(os.path.dirname(__file__), "dirpath")
         os.makedirs(self.dirpath, exist_ok=True)
@@ -40,18 +34,23 @@ class Server:
 
     async def start_server(self) -> None:
         self.acceptor_skt.bind(self.host, self.port)
-        incomming_connections: Queue[ConnectionSocket] = asyncio.Queue()
+        incoming_connections: Queue[ConnectionSocket] = asyncio.Queue()
 
         async def acceptor_callback() -> None:
             while True:
                 connection_skt = await self.acceptor_skt.accept()
-                await incomming_connections.put(connection_skt)
+                await incoming_connections.put(connection_skt)
 
         async def handle_connection() -> None:
             while True:
-                connection_skt = await incomming_connections.get()
+                connection_skt = await incoming_connections.get()
                 protocol = StopAndWait(connection_skt, self.verbose)
-                await self._handle_download(protocol)
+
+                mode_packet = await connection_skt.recv()
+                if mode_packet.get_mode() == HeaderFlags.UPLOAD:
+                    asyncio.create_task(self._handle_upload(protocol))
+                else:
+                    asyncio.create_task(self._handle_download(protocol))
 
         acceptor_task = asyncio.create_task(acceptor_callback())
         handle_task = asyncio.create_task(handle_connection())
@@ -83,10 +82,59 @@ class Server:
             loop.close()
 
     async def _handle_download(self, protocol: Protocol) -> None:
-        print(f"[Server] Sending file to user from {self.dirpath}")
-        filename = "data.txt"
-        storage_path = os.path.join(self.dirpath, "storage")
-        await protocol.send_file(filename, storage_path, HeaderFlags.DOWNLOAD.value)
+        try:
+            request_packet = await protocol.socket.recv()
+            filename = request_packet.get_data().decode().strip()
+
+            filepath = os.path.join(self.dirpath, filename)
+
+            if not os.path.isfile(filepath):
+                print(f"[Server] File {filename} not found, sending FIN")
+                fin_pkt = Packet(
+                    0,
+                    0,
+                    b"File not found",
+                    HeaderFlags.STOP_WAIT.value | HeaderFlags.FIN.value,
+                )
+                await protocol.socket.send(fin_pkt)
+                return
+
+            print(f"[Server] Sending file {filename} to user")
+            await protocol.send_file(filename, self.dirpath, HeaderFlags.DOWNLOAD.value)
+
+        except Exception as e:
+            print(f"[Server] Error handling download: {e}")
+            raise
 
     async def _handle_upload(self, protocol: Protocol) -> None:
-        pass
+        try:
+            name_packet = await protocol.socket.recv()
+            filename = name_packet.get_data().decode().strip()
+
+            if not self._is_valid_filename(filename):
+                error_pkt = Packet(
+                    0,
+                    0,
+                    b"Invalid filename",
+                    HeaderFlags.STOP_WAIT.value | HeaderFlags.FIN.value,
+                )
+                await protocol.socket.send(error_pkt)
+                return
+
+            os.makedirs(self.dirpath, exist_ok=True)
+
+            print(f"[Server] Receiving file {filename} from client")
+            await protocol.recv_file(filename, self.dirpath, HeaderFlags.UPLOAD.value)
+            print(f"[Server] File {filename} received successfully")
+
+        except Exception as e:
+            print(f"[Server] Error handling upload: {e}")
+            raise
+
+    def _is_valid_filename(self, filename: str) -> bool:
+        """Validate filename to prevent path traversal."""
+        return bool(
+            filename
+            and not os.path.isabs(filename)
+            and not any(c in filename for c in "/\\")
+        )
