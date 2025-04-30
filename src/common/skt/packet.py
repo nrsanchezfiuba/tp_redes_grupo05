@@ -4,7 +4,7 @@ from typing import NamedTuple
 
 HEADER_PACK_FORMAT: str = "!HHH"  # Big-endian unsigned short (2 bytes)
 
-MAX_SEQ_NUM: int = 1024
+MAX_SEQ_NUM: int = 65536
 
 
 class HeaderMasks(Enum):

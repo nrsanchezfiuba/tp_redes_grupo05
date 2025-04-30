@@ -1,6 +1,5 @@
 import asyncio
 import os
-import random
 from collections import deque
 
 from common.protocol.protocol import BLOCK_SIZE, Protocol
@@ -83,9 +82,9 @@ class GoBackN(Protocol):
                         await self.socket.send(packet)
 
                         self.unacked_pkts.append(packet)
-                        if (
-                            self.base == self.next_seq_num
-                        ):  # Start timer if first packet in window range
+
+                        # Start timer if first packet in window range
+                        if self.base == self.next_seq_num:
                             self._start_timer()
 
                         self.next_seq_num += 1
@@ -93,15 +92,29 @@ class GoBackN(Protocol):
                     else:
                         ack_packet = await self.socket.recv()
                         if self._process_ack_packet(ack_packet, self.base):
-                            await asyncio.sleep(random.uniform(0, 3))
                             if ack_packet.get_ack_num() == self.base:
                                 self._print_debug(
                                     "[DEBUG] Received first ACK from the start of the window"
                                 )
                                 self._stop_timer()
                                 self.unacked_pkts.popleft()
+                                self.base += 1
+                                self.base %= MAX_SEQ_NUM
+
+                self._start_timer()
+
+                while self.unacked_pkts:
+                    ack_packet = await self.socket.recv()
+                    if self._process_ack_packet(ack_packet, self.base):
+                        if ack_packet.get_ack_num() == self.base:
+                            self._print_debug(
+                                "[DEBUG] Received first ACK from the start of the window"
+                            )
+                            self.unacked_pkts.popleft()
                             self.base += 1
                             self.base %= MAX_SEQ_NUM
+
+                self._stop_timer()
 
                 await self._send_fin_packet(0)
             finally:
