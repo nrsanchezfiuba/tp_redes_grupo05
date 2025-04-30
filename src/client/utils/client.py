@@ -52,8 +52,17 @@ class Client:
     async def handle_download(self, connection_skt: ConnectionSocket) -> None:
         protocol = StopAndWait(connection_skt, self.verbose)
         await self._send_mode_and_name(connection_skt, HeaderFlags.DOWNLOAD)
-        await protocol.recv_file(self.name, self.dst, HeaderFlags.DOWNLOAD.value)
-        print(f"[Client] File {self.name} downloaded successfully")
+
+        try:
+            success = await protocol.recv_file(
+                self.name, self.dst, HeaderFlags.DOWNLOAD.value
+            )
+            if success:
+                print(f"[Client] File {self.name} downloaded successfully")
+            else:
+                print(f"[ERROR] Failed to download file {self.name}")
+        except Exception as e:
+            print(f"[ERROR] Download failed: {e}")
 
     async def handle_upload(self, connection_skt: ConnectionSocket) -> None:
         protocol = StopAndWait(connection_skt, self.verbose)

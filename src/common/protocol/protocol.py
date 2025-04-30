@@ -21,11 +21,7 @@ class Protocol(ABC):
         self.socket = socket
 
     @abstractmethod
-    def save_data(self, data: bytes) -> None:
-        pass
-
-    @abstractmethod
-    async def recv_file(self, name: str, dirpath: str, mode: int) -> None:
+    async def recv_file(self, name: str, dirpath: str, mode: int) -> bool:
         pass
 
     @abstractmethod
