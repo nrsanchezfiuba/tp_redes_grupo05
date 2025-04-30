@@ -87,32 +87,34 @@ class GoBackN(Protocol):
                         if self.base == self.next_seq_num:
                             self._start_timer()
 
-                        self.next_seq_num += 1
-                        self.next_seq_num %= MAX_SEQ_NUM
+                        self.base = (self.base + 1) % MAX_SEQ_NUM
                     else:
                         ack_packet = await self.socket.recv()
-                        if self._process_ack_packet(ack_packet, self.base):
+                        if ack_packet.is_ack():
                             if ack_packet.get_ack_num() == self.base:
                                 self._print_debug(
                                     "[DEBUG] Received first ACK from the start of the window"
                                 )
                                 self._stop_timer()
                                 self.unacked_pkts.popleft()
-                                self.base += 1
-                                self.base %= MAX_SEQ_NUM
+                                self.base = (self.base + 1) % MAX_SEQ_NUM
+                            else:
+                                self._start_timer()
 
                 self._start_timer()
 
                 while self.unacked_pkts:
                     ack_packet = await self.socket.recv()
-                    if self._process_ack_packet(ack_packet, self.base):
+                    if ack_packet.is_ack():
                         if ack_packet.get_ack_num() == self.base:
                             self._print_debug(
                                 "[DEBUG] Received first ACK from the start of the window"
                             )
+                            self._stop_timer()
                             self.unacked_pkts.popleft()
-                            self.base += 1
-                            self.base %= MAX_SEQ_NUM
+                            self.base = (self.base + 1) % MAX_SEQ_NUM
+                        else:
+                            self._start_timer()
 
                 self._stop_timer()
 
@@ -138,16 +140,6 @@ class GoBackN(Protocol):
     ) -> Packet:
         """Create a data packet with the given sequence number."""
         return Packet(seq_num, ack_num, data, HeaderFlags.GBN.value | mode)
-
-    # hashtag polemico (o_o)
-    def _process_ack_packet(self, ack_packet: Packet, expected_seq: int) -> bool:
-        """Process received ACK packet and return True if valid."""
-        if ack_packet.is_ack():
-            self._print_debug(f"[DEBUG] Received valid ACK for seq={expected_seq}")
-            return True
-        else:
-            self._print_debug("[DEBUG] Received non-ACK packet, ignoring")
-            return False
 
     def _validate_file_path(self, dirpath: str, name: str) -> str:
         """Validate and return full file path."""

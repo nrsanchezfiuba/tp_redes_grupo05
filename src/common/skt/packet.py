@@ -42,7 +42,6 @@ class HeaderData(NamedTuple):
 
 
 class Packet:
-
     @classmethod
     def for_ack(cls, seq_num: int, ack_num: int, protocol: HeaderFlags) -> "Packet":
         return cls(seq_num, ack_num, b"", HeaderFlags.ACK.value | protocol.value)
