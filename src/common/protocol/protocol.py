@@ -1,5 +1,6 @@
 from abc import ABC, abstractmethod
 
+from common.file_ops.file_manager import FileManager
 from common.skt.connection_socket import ConnectionSocket
 from common.skt.packet import HeaderFlags
 
@@ -21,13 +22,15 @@ class Protocol(ABC):
         self.socket = socket
 
     @abstractmethod
+    async def handle_connection(self) -> None:
+        raise NotImplementedError("Must implement handle_connection method")
+
+    @abstractmethod
     def save_data(self, data: bytes) -> None:
-        pass
+        raise NotImplementedError("Must implement save_data method")
 
-    @abstractmethod
-    async def recv_file(self, name: str, dirpath: str, mode: int) -> None:
-        pass
+    async def recv_file(self, file_manager: FileManager, mode: int) -> None:
+        raise NotImplementedError("Must implement recv_file method")
 
-    @abstractmethod
-    async def send_file(self, name: str, filepath: str, mode: int) -> None:
-        pass
+    async def send_file(self, file_manager: FileManager, mode: int) -> None:
+        raise NotImplementedError("Must implement send_file method")

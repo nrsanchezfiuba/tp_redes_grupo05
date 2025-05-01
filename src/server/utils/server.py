@@ -3,40 +3,25 @@ import os
 from argparse import Namespace
 from asyncio.queues import Queue
 
+from server.config import ServerConfig
 from common.flow_manager import FlowManager
 from common.protocol.go_back_n import GoBackN
-from common.protocol.protocol import Protocol, protocol_mapping
+from common.protocol.protocol import Protocol
 from common.protocol.stop_and_wait import StopAndWait
 from common.skt.acceptor_socket import AcceptorSocket
 from common.skt.connection_socket import ConnectionSocket
 from common.skt.packet import HeaderFlags, Packet
+from common.file_ops.file_manager import FileManager, FileOperation
 
 
 class Server:
     def __init__(self, args: Namespace) -> None:
-        self.args: Namespace = args
-        self.host: str = args.host
-        self.port: int = args.port
-        self.dirpath: str = args.storage
-        self.protocol: str = args.protocol.upper()
-        self.verbose: bool = args.verbose
-        self.quiet: bool = args.quiet
-
-        if not self.dirpath:
-            self.dirpath = os.path.join(os.path.dirname(__file__), self.dirpath)
-        os.makedirs(self.dirpath, exist_ok=True)
-
-        self.protocol_flag: HeaderFlags = (
-            protocol_mapping.get(self.protocol) or HeaderFlags.GBN
-        )
-        # if self.protocol_flag is None:
-        #     raise ValueError(f"Unsupported protocol: {self.protocol}")
-
+        self.config = ServerConfig(args)
         self.flow_manager = FlowManager()
-        self.acceptor_skt = AcceptorSocket(self.protocol_flag, self.flow_manager)
+        self.acceptor_skt = AcceptorSocket(self.config.protocol_type, self.flow_manager)
 
     async def start_server(self) -> None:
-        self.acceptor_skt.bind(self.host, self.port)
+        self.acceptor_skt.bind(self.config.host, self.config.port)
         incoming_connections: Queue[ConnectionSocket] = asyncio.Queue()
 
         async def acceptor_callback() -> None:
@@ -48,19 +33,8 @@ class Server:
             while True:
                 connection_skt = await incoming_connections.get()
 
-                protocol: Protocol = GoBackN(connection_skt, self.verbose)
-
-                if self.protocol == "SW":
-                    protocol = StopAndWait(connection_skt, self.verbose)
-                elif self.protocol == "GBN":
-                    protocol = GoBackN(connection_skt, self.verbose)
-
-                mode_packet = await connection_skt.recv()
-
-                if mode_packet.get_mode() == HeaderFlags.UPLOAD:
-                    asyncio.create_task(self._handle_upload(protocol))
-                elif mode_packet.get_mode() == HeaderFlags.DOWNLOAD:
-                    asyncio.create_task(self._handle_download(protocol))
+                protocol: Protocol = self._init_protocol_for_connection(connection_skt)
+                asyncio.create_task(protocol.handle_connection())
 
         acceptor_task = asyncio.create_task(acceptor_callback())
         handle_task = asyncio.create_task(handle_connection())
@@ -68,12 +42,12 @@ class Server:
         await asyncio.gather(acceptor_task, handle_task)
 
     def run(self) -> None:
-        if self.verbose:
+        if self.config.verbose:
             print("[Server] Starting server with the following parameters:")
-            print(f"[Server] Host: {self.host}")
-            print(f"[Server] Port: {self.port}")
-            print(f"[Server] Storage folder dir path: {self.dirpath}")
-            print(f"[Server] Protocol: {self.protocol}")
+            print(f"[Server] Host: {self.config.host}")
+            print(f"[Server] Port: {self.config.port}")
+            print(f"[Server] Storage folder dir path: {self.config.dirpath}")
+            print(f"[Server] Protocol: {self.config.protocol_type}")
 
         loop = asyncio.get_event_loop()
 
@@ -96,25 +70,18 @@ class Server:
             request_packet = await protocol.socket.recv()
             filename = request_packet.get_data().decode().strip()
 
-            filepath = os.path.join(self.dirpath, filename)
-
-            if not os.path.isfile(filepath):
-                print(f"[Server] File {filename} not found, sending FIN")
-                fin_pkt = Packet(
-                    0,
-                    0,
-                    b"File not found",
-                    self.protocol_flag.value | HeaderFlags.FIN.value,
-                )
-                await protocol.socket.send(fin_pkt)
-                return
+            file_manager = FileManager(
+                self.config.dirpath, filename, FileOperation.READ
+            )
 
             print(f"[Server] Sending file {filename} to user")
-            await protocol.send_file(filename, self.dirpath, HeaderFlags.DOWNLOAD.value)
+            await protocol.send_file(file_manager, HeaderFlags.DOWNLOAD.value)
 
-        except Exception as e:
-            print(f"[Server] Error handling download: {e}")
-            raise
+        except FileNotFoundError | FileExistsError:
+            fin_pkt = Packet(
+                flags=self.config.protocol_type.value | HeaderFlags.FIN.value,
+            )
+            await protocol.socket.send(fin_pkt)
 
     async def _handle_upload(self, protocol: Protocol) -> None:
         try:
@@ -149,3 +116,12 @@ class Server:
             and not os.path.isabs(filename)
             and not any(c in filename for c in "/\\")
         )
+
+    def _init_protocol_for_connection(self, conn: ConnectionSocket) -> Protocol:
+        match self.config.protocol_type:
+            case HeaderFlags.STOP_WAIT:
+                return StopAndWait(conn, self.config)
+            case HeaderFlags.GBN:
+                return GoBackN(conn, self.config)
+            case _:
+                raise ValueError(f"Unsupported protocol: {self.config.protocol_type}")

@@ -1,34 +1,59 @@
 import asyncio
 import os
 
+from common.file_ops.file_manager import FileManager, FileOperation
 from common.protocol.protocol import BLOCK_SIZE, Protocol
 from common.skt.connection_socket import ConnectionSocket
 from common.skt.packet import HeaderFlags, Packet
+from server.config import ServerConfig
 
 TIMEOUT_END_CONECTION: float = 5
 
 
 class StopAndWait(Protocol):
-    def __init__(self, socket: ConnectionSocket, verbose: bool = False):
+    def __init__(self, socket: ConnectionSocket, config: ServerConfig):
         super().__init__(socket)
         self.received_data = bytearray()
         self.current_file = None
         self.expected_seq_num = 0
-        self.verbose = verbose
+        self.config = config
+
+    async def handle_connection(self) -> None:
+        file_name_pkt = await self.socket.recv()
+        try:
+            match file_name_pkt.get_mode():
+                case HeaderFlags.UPLOAD:
+                    file_name = file_name_pkt.get_data().decode().strip()
+                    file_manager = FileManager(
+                        self.config.dirpath, file_name, FileOperation.WRITE
+                    )
+                    await self.recv_file(file_manager, 1)
+                case HeaderFlags.DOWNLOAD:
+                    file_name = file_name_pkt.get_data().decode().strip()
+                    file_manager = FileManager(
+                        self.config.dirpath, file_name, FileOperation.READ
+                    )
+                    await self.send_file(file_manager, 0)
+                case _:
+                    raise ValueError("Invalid mode in packet")
+        except FileNotFoundError:
+            print(
+                f"[ERROR] File not found: {file_name_pkt.get_data().decode().strip()}"
+            )
+            fin_pkt = Packet(
+                HeaderFlags.STOP_WAIT.value | HeaderFlags.FIN.value,
+            )
+            await self.socket.send(fin_pkt)
 
     def _print_debug(self, message: str) -> None:
-        if self.verbose:
+        if self.config.verbose:
             print(message)
 
-    async def recv_file(self, name: str, dirpath: str, mode: int) -> None:
+    async def recv_file(self, file_manager: FileManager, mode: int) -> None:
         try:
-            first_packet = await self._receive_first_packet()
-
-            if self._is_file_not_found(first_packet):
-                print(f"[ERROR] File '{name}' not found on server")
-                return
-
-            await self._process_file_transfer(name, dirpath, first_packet)
+            first_packet = await self.socket.recv()
+            expected_seq = await self._process_first_packet(file_manager, first_packet)
+            await self._process_remaining_packets(file_manager, expected_seq)
 
         except Exception as e:
             print(f"[ERROR] Receive failed: {e}")
@@ -52,35 +77,20 @@ class StopAndWait(Protocol):
         self.current_file.write(data)
         self.current_file.flush()
 
-    async def send_file(self, name: str, dirpath: str, mode: int) -> None:
+    async def send_file(self, file_manager: FileManager, mode: int) -> None:
         try:
-            filepath = self._validate_file_path(dirpath, name)
-            await self._send_file_contents(filepath, mode)
+            await self._send_file_contents(file_manager, mode)
         except Exception as e:
             print(f"[ERROR] Failed to send file: {e}")
             raise
 
-    async def _receive_first_packet(self) -> Packet:
-        """Receive and return the first packet with timeout."""
-        return await asyncio.wait_for(self.socket.recv(), timeout=5.0)
-
-    async def _process_file_transfer(
-        self, name: str, dirpath: str, first_packet: Packet
-    ) -> None:
-        """Handle the complete file transfer process."""
-        os.makedirs(dirpath, exist_ok=True)
-        filepath = os.path.join(dirpath, name)
-
-        with open(filepath, "wb") as file:
-            expected_seq = await self._process_first_packet(file, first_packet)
-            await self._process_remaining_packets(file, expected_seq)
-
-    async def _process_first_packet(self, file, packet: Packet) -> int:  # type: ignore
+    async def _process_first_packet(
+        self, file_manager: FileManager, packet: Packet
+    ) -> int:  # type: ignore
         """Process the first packet and return the next expected sequence number."""
         if packet.get_seq_num() == 0:
             self._print_debug("[DEBUG] Received valid packet seq=0")
-            file.write(packet.get_data())
-            file.flush()
+            file_manager.write_file(packet.get_data())
             await self._send_ack(0)
             return 1
         else:
@@ -88,7 +98,9 @@ class StopAndWait(Protocol):
             await self._send_ack(1)
             return 0
 
-    async def _process_remaining_packets(self, file, expected_seq: int) -> None:  # type: ignore
+    async def _process_remaining_packets(
+        self, file_manager: FileManager, expected_seq: int
+    ) -> None:  # type: ignore
         """Process all subsequent packets until transfer completion."""
         while True:
             try:
@@ -99,7 +111,7 @@ class StopAndWait(Protocol):
                     break
 
                 expected_seq = await self._process_data_packet(
-                    file, packet, expected_seq
+                    file_manager, packet, expected_seq
                 )
 
             except asyncio.TimeoutError:
@@ -107,13 +119,12 @@ class StopAndWait(Protocol):
                 break
 
     async def _process_data_packet(  # type: ignore
-        self, file, packet: Packet, expected_seq: int
+        self, file: FileManager, packet: Packet, expected_seq: int
     ) -> int:
         """Process a data packet, WRITES to file and return next expected sequence number."""
         if packet.get_seq_num() == expected_seq:
             self._print_debug(f"[DEBUG] Received valid packet seq={expected_seq}")
-            file.write(packet.get_data())
-            file.flush()
+            file.write_file(packet.get_data())
             await self._send_ack(expected_seq)
             return 1 - expected_seq
         else:
@@ -123,18 +134,17 @@ class StopAndWait(Protocol):
             await self._send_ack(1 - expected_seq)
             return expected_seq
 
-    async def _send_file_contents(self, filepath: str, mode: int) -> None:
+    async def _send_file_contents(self, file_manager: FileManager, mode: int) -> None:
         """Send file contents with stop-and-wait protocol."""
-        with open(filepath, "rb") as file:
-            seq_num = 0
-            while True:
-                block = file.read(BLOCK_SIZE)
-                if not block:
-                    await self._send_fin_packet(seq_num)
-                    break
+        seq_num = 0
+        while True:
+            block = file_manager.read_file(BLOCK_SIZE)
+            if not block:
+                await self._send_fin_packet(seq_num)
+                break
 
-                packet = self._create_data_packet(seq_num, block, mode)
-                seq_num = await self._send_packet_with_retries(packet, seq_num)
+            packet = self._create_data_packet(seq_num, block, mode)
+            seq_num = await self._send_packet_with_retries(packet, seq_num)
 
     async def _send_fin_packet(self, seq_num: int) -> None:
         """Send FIN packet to signal end of transmission."""
