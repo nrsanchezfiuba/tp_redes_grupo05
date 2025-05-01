@@ -31,7 +31,12 @@ class Client:
             raise ValueError("Wrong Protocol")
 
         connection_skt = ConnectionSocket.for_client((self.host, self.port))
-        await connection_skt.connect(self.protocol_flag)
+
+        try:
+            await connection_skt.connect(self.protocol_flag)
+        except Exception as e:
+            print(f"[Client] Failed to connect: {e}")
+            return
 
         protocol: Protocol = GoBackN(connection_skt, self.verbose)
 

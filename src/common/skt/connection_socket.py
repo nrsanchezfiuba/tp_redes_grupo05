@@ -4,6 +4,9 @@ from typing import Optional, Tuple
 from common.skt.packet import HeaderFlags, Packet
 from common.skt.udp_socket import UDPSocket
 
+MAX_CONNECT_RETYRIES: int = 3
+MAX_CONNECT_TIMEOUT: float = 5.0
+
 
 class ConnectionSocket:
     @classmethod
@@ -20,17 +23,31 @@ class ConnectionSocket:
         self.addr: Tuple[str, int] = addr
         self.udp_socket: UDPSocket = UDPSocket()
         self.queue: Optional[asyncio.Queue[Packet]] = queue
+        self.timer: None
+        self.connect_retries: int = 0
+        self.protocol: HeaderFlags = HeaderFlags.SYN
 
     async def connect(self, protocol: HeaderFlags) -> None:
+        self.protocol = protocol
         await self.send(Packet(flags=HeaderFlags.SYN.value | protocol.value))
-        print(protocol.value)
-        pkt = await self.recv()
-        if pkt.is_syn() and pkt.is_ack():
-            print(f"[ConnectionSocket] Connection established with {self.addr}")
-        else:
-            raise RuntimeError(
-                f"[ConnectionSocket] Failed to establish connection with {self.addr}"
-            )
+
+        # Timeout only for the connection phase
+        try:
+            # Wait for SYN-ACK with a timeout
+            pkt = await asyncio.wait_for(self.recv(), timeout=MAX_CONNECT_TIMEOUT)
+            if pkt.is_syn() and pkt.is_ack():
+                print(f"Connected to {self.addr}")
+                return
+            else:
+                raise RuntimeError("Invalid handshake response")
+        except asyncio.TimeoutError:
+            self.connect_retries += 1
+            if self.connect_retries > MAX_CONNECT_RETYRIES:
+                raise TimeoutError(
+                    f"Connection failed after {MAX_CONNECT_RETYRIES} retries"
+                )
+            print(f"Retrying... (Attempt {self.connect_retries})")
+            return await self.connect(protocol)  # Retry
 
     async def send(self, packet: Packet) -> None:
         await self.udp_socket.send_all(packet.to_bytes(), self.addr)
