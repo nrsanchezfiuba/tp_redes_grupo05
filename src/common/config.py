@@ -46,16 +46,6 @@ class Config:
         if storage:
             os.makedirs(storage, exist_ok=True)
 
-    def __repr__(self) -> str:
-        return (
-            f"ServerConfig(host={self.host}, "
-            f"port={self.port}, "
-            f"dirpath={self.server_dirpath}, "
-            f"protocol_type={self.protocol_type}, "
-            f"verbose={self.verbose}, "
-            f"quiet={self.quiet})"
-        )
-
     def _map_protocol(self, protocol: str) -> HeaderFlags:
         if protocol not in protocol_mapping:
             raise ValueError(f"Invalid protocol: {protocol}")
