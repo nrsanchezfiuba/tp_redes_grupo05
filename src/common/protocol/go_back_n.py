@@ -87,7 +87,7 @@ class GoBackN(Protocol):
                         if self.base == self.next_seq_num:
                             self._start_timer()
 
-                        self.base = (self.base + 1) % MAX_SEQ_NUM
+                        self.next_seq_num = (self.next_seq_num + 1) % MAX_SEQ_NUM
                     else:
                         ack_packet = await self.socket.recv()
                         if ack_packet.is_ack():

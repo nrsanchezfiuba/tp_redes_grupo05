@@ -108,8 +108,7 @@ class Packet:
             f"Packet(flags={hex(self.header_data.flags)}, "
             f"length={self.header_data.length}, "
             f"seq_num={self.header_data.seq_num}, "
-            f"ack_num={self.header_data.ack_num}, "
-            f"data={self.data!r})"
+            f"ack_num={self.header_data.ack_num})"
         )
 
     def is_syn(self) -> bool:
