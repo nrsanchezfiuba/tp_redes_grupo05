@@ -43,9 +43,13 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && chmod +x /ENTRYPOINT.sh \
     && curl -LsSf https://astral.sh/uv/install.sh | sh
 
-COPY . /root
+COPY uv.lock pyproject.toml* ./
 
 ENV PATH="/root/.local/bin:${PATH}"
+RUN uv sync
+
+COPY . /root
+
 ENV PYTHONPATH=src
 
 EXPOSE 6633 6653 6640
