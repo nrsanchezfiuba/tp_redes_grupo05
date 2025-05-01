@@ -2,11 +2,11 @@ import asyncio
 import os
 from collections import deque
 
-from common.protocol.protocol import BLOCK_SIZE, Protocol
+from common.config import Config
+from common.file_ops.file_manager import FileManager, FileOperation
+from common.protocol.protocol import Protocol
 from common.skt.connection_socket import ConnectionSocket
 from common.skt.packet import MAX_SEQ_NUM, HeaderFlags, Packet
-from common.file_ops.file_manager import FileManager, FileOperation
-from server.config import ServerConfig
 
 TIMEOUT_END_CONECTION: float = 5
 WINDOW_SIZE: int = 5
@@ -14,32 +14,90 @@ RETRANSMIT_TIMEOUT: float = 0.5
 
 
 class GoBackN(Protocol):
-    def __init__(self, socket: ConnectionSocket, config: ServerConfig):
+    def __init__(self, socket: ConnectionSocket, config: Config):
         super().__init__(socket)
         self.received_data = bytearray()
-        self.current_file = None
         self.expected_seq_num = 0
+        self.base = 0
+        self.next_seq_num = 0
         self.config = config
         self.unacked_pkts: deque[Packet] = deque()
         self.timer = None
 
+    async def initiate_transaction(self) -> None:
+        file_name_pkt = Packet(
+            data=self.config.client_filename.encode(),
+            flags=HeaderFlags.GBN.value | self.config.client_mode.value,
+        )
+        retries = 0
+        while retries < 3:
+            await self.socket.send(file_name_pkt)
+            ack_pkt = await self.socket.recv()
+            if ack_pkt.is_ack():
+                break
+            retries += 1
+            await asyncio.sleep(0.5)
+        if retries == 3:
+            fin_pkt = Packet(
+                flags=HeaderFlags.GBN.value
+                | HeaderFlags.FIN.value
+                | self.config.client_mode.value,
+            )
+            await self.socket.send(fin_pkt)
+            raise TimeoutError("Failed to receive ACK for filename packet")
+
+        match self.config.client_mode:
+            case HeaderFlags.UPLOAD:
+                file_manager = FileManager(
+                    self.config.client_dst,
+                    self.config.client_filename,
+                    FileOperation.READ,
+                )
+                await self.send_file(file_manager, 1)
+            case HeaderFlags.DOWNLOAD:
+                file_manager = FileManager(
+                    self.config.client_dst,
+                    self.config.client_filename,
+                    FileOperation.WRITE,
+                )
+                await self.recv_file(file_manager, 0)
+
     async def handle_connection(self) -> None:
         file_name_pkt = await self.socket.recv()
+        mode = file_name_pkt.get_mode()
+        if file_name_pkt.get_protocol_type() != HeaderFlags.GBN:
+            fin_pkt = Packet(
+                flags=HeaderFlags.GBN.value | HeaderFlags.FIN.value | mode.value,
+            )
+            await self.socket.send(fin_pkt)
+            return
         try:
-            match file_name_pkt.get_mode():
+            match mode:
                 case HeaderFlags.UPLOAD:
                     file_name = file_name_pkt.get_data().decode().strip()
                     file_manager = FileManager(
-                        self.config.dirpath, file_name, FileOperation.WRITE
+                        self.config.server_dirpath, file_name, FileOperation.WRITE
                     )
-                    self.current_file = file_manager.file
+                    ack = Packet(
+                        ack_num=file_name_pkt.get_seq_num(),
+                        flags=HeaderFlags.GBN.value
+                        | HeaderFlags.ACK.value
+                        | mode.value,
+                    )
+                    await self.socket.send(ack)
                     await self.recv_file(file_manager, 1)
                 case HeaderFlags.DOWNLOAD:
                     file_name = file_name_pkt.get_data().decode().strip()
                     file_manager = FileManager(
-                        self.config.dirpath, file_name, FileOperation.READ
+                        self.config.server_dirpath, file_name, FileOperation.READ
                     )
-                    self.current_file = file_manager.file
+                    ack = Packet(
+                        ack_num=file_name_pkt.get_seq_num(),
+                        flags=HeaderFlags.GBN.value
+                        | HeaderFlags.ACK.value
+                        | mode.value,
+                    )
+                    await self.socket.send(ack)
                     await self.send_file(file_manager, 0)
                 case _:
                     raise ValueError("Invalid mode in packet")
@@ -48,7 +106,7 @@ class GoBackN(Protocol):
                 f"[ERROR] File not found: {file_name_pkt.get_data().decode().strip()}"
             )
             fin_pkt = Packet(
-                HeaderFlags.GBN.value | HeaderFlags.FIN.value,
+                HeaderFlags.GBN.value | HeaderFlags.FIN.value | mode.value,
             )
             await self.socket.send(fin_pkt)
 
@@ -64,8 +122,13 @@ class GoBackN(Protocol):
                     self._print_debug(
                         f"[DEBUG] Received valid packet seq={self.expected_seq_num}"
                     )
-                    file_manager.write_file(packet.get_data())
-                    await self._send_ack(0, self.expected_seq_num)
+                    file_manager.write_chunk(packet.get_data())
+                    ack = Packet(
+                        seq_num=0,
+                        ack_num=self.expected_seq_num,
+                        flags=HeaderFlags.GBN.value | HeaderFlags.ACK.value | mode,
+                    )
+                    await self.socket.send(ack)
                     self.expected_seq_num += 1
                     self.expected_seq_num %= MAX_SEQ_NUM
                 elif packet.is_fin():
@@ -82,21 +145,12 @@ class GoBackN(Protocol):
             print(f"[ERROR] Failed to send file: {e}")
             raise
 
-    def save_data(self, data: bytes) -> None:
-        if self.current_file is None:
-            raise RuntimeError("File not opened for writing.")
-
-        self.current_file.write(data)
-        self.current_file.flush()
-
     async def _send_file_contents(self, file_manager: FileManager, mode: int) -> None:
         """Send file contents with stop-and-wait protocol."""
-        self.base = 0
-        self.next_seq_num = 0
         try:
             while True:
                 if (self.next_seq_num - self.base) % MAX_SEQ_NUM < WINDOW_SIZE:
-                    block = file_manager.read_file(BLOCK_SIZE)
+                    block = file_manager.read_chunk()
                     if not block:
                         break
 
@@ -169,12 +223,6 @@ class GoBackN(Protocol):
         if not os.path.isfile(filepath):
             raise FileNotFoundError(f"File not found: {filepath}")
         return filepath
-
-    async def _send_ack(self, seq_num: int, ack_num: int) -> None:
-        """Send an ACK for the given sequence number."""
-        ack = Packet.for_ack(seq_num, ack_num, HeaderFlags.GBN)
-        self._print_debug(f"[DEBUG] Sending ACK for seq={seq_num}")
-        await self.socket.send(ack)
 
     def _is_transfer_complete(self, packet: Packet) -> bool:
         """Check if packet indicates transfer completion('fin' flag is sent) ."""

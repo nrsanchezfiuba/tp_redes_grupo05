@@ -27,6 +27,8 @@ class ConnectionSocket:
         pkt = await self.recv()
         if pkt.is_syn() and pkt.is_ack():
             print(f"[ConnectionSocket] Connection established with {self.addr}")
+        elif pkt.is_fin():
+            print(f"[ConnectionSocket] Connection closed by {self.addr}")
         else:
             raise RuntimeError(
                 f"[ConnectionSocket] Failed to establish connection with {self.addr}"
