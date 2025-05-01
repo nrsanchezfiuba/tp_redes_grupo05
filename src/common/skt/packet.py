@@ -47,6 +47,15 @@ class Packet:
         return cls(seq_num, ack_num, b"", HeaderFlags.ACK.value | protocol.value)
 
     @classmethod
+    def for_fin_ack(cls, seq_num: int, ack_num: int, protocol: HeaderFlags) -> "Packet":
+        return cls(
+            seq_num,
+            ack_num,
+            b"",
+            HeaderFlags.ACK.value | HeaderFlags.FIN.value | protocol.value,
+        )
+
+    @classmethod
     def from_bytes(cls, packet: bytes) -> "Packet":
         """
         Creates a Packet instance from a byte array (from network).

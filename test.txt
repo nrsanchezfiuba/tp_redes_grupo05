@@ -1,30 +1,105 @@
-AAAAAAAAAAAAAAAAAAAAAAAAAAA
-BBBBBBBBBBBBBBBBBBBBBBBBBBB
-CCCCCCCCCCCCCCCCCCCCCCCCCCC
-DDDDDDDDDDDDDDDDDDDDDDDDDDD
-EEEEEEEEEEEEEEEEEEEEEEEEEEE
-AAAAAAAAAAAAAAAAAAAAAAAAAAA
-BBBBBBBBBBBBBBBBBBBBBBBBBBB
-CCCCCCCCCCCCCCCCCCCCCCCCCCC
-DDDDDDDDDDDDDDDDDDDDDDDDDDD
-EEEEEEEEEEEEEEEEEEEEEEEEEEE
-AAAAAAAAAAAAAAAAAAAAAAAAAAA
-BBBBBBBBBBBBBBBBBBBBBBBBBBB
-CCCCCCCCCCCCCCCCCCCCCCCCCCC
-DDDDDDDDDDDDDDDDDDDDDDDDDDD
-EEEEEEEEEEEEEEEEEEEEEEEEEEE
-AAAAAAAAAAAAAAAAAAAAAAAAAAA
-BBBBBBBBBBBBBBBBBBBBBBBBBBB
-CCCCCCCCCCCCCCCCCCCCCCCCCCC
-DDDDDDDDDDDDDDDDDDDDDDDDDDD
-EEEEEEEEEEEEEEEEEEEEEEEEEEE
-AAAAAAAAAAAAAAAAAAAAAAAAAAA
-BBBBBBBBBBBBBBBBBBBBBBBBBBB
-CCCCCCCCCCCCCCCCCCCCCCCCCCC
-DDDDDDDDDDDDDDDDDDDDDDDDDDD
-EEEEEEEEEEEEEEEEEEEEEEEEEEE
-AAAAAAAAAAAAAAAAAAAAAAAAAAA
-BBBBBBBBBBBBBBBBBBBBBBBBBBB
-CCCCCCCCCCCCCCCCCCCCCCCCCCC
-DDDDDDDDDDDDDDDDDDDDDDDDDDD
-EEEEEEEEEEEEEEEEEEEEEEEEEEE
+dow size of 1,000 words) had to be repeated. The dictation would be slowed by all
+
+of the reiterated words.
+
+As the name suggests, selective-repeat protocols avoid unnecessary retrans-
+missions by having the sender retransmit only those packets that it suspects were
+
+received in error (that is, were lost or corrupted) at the receiver. This individual,
+as-needed, retransmission will require that the receiver individually acknowledge
+
+correctly received packets. A window size of N will again be used to limit the num-
+ber of outstanding, unacknowledged packets in the pipeline. However, unlike GBN,
+
+the sender will have already received ACKs for some of the packets in the window.
+Figure 3.23 shows the SR sender’s view of the sequence number space. Figure 3.24
+details the various actions taken by the SR sender.
+The SR receiver will acknowledge a correctly received packet whether or not it is
+in order. Out-of-order packets are buffered until any missing packets (that is, packets
+with lower sequence numbers) are received, at which point a batch of packets can be
+delivered in order to the upper layer. Figure 3.25 itemizes the various actions taken by
+the SR receiver. Figure 3.26 shows an example of SR operation in the presence of lost
+packets. Note that in Figure 3.26, the receiver initially buffers packets 3, 4, and 5, and
+delivers them together with packet 2 to the upper layer when packet 2 is finally received.
+
+send_base nextseqnum
+
+Window size
+N
+
+Key:
+
+Key:
+Already
+ACK’d
+Sent, not
+yet ACK’d
+
+Usable,
+not yet sent
+Not usable
+
+Out of order
+(buffered) but
+already ACK’d
+Expected, not
+yet received
+
+Acceptable
+(within
+window)
+Not usable
+
+a. Sender view of sequence numbers
+
+b. Receiver view of sequence numbers
+
+rcv_base
+
+Window size
+N
+
+Figure 3.23 ♦ Selective-repeat (SR) sender and receiver views
+
+of sequence-number space
+
+M03_KURO1557_08_SE_C03.indd 221 11/02/20 12:15 PM
+
+222 CHAPTER 3 • TRANSPORT LAYER
+
+It is important to note that in Step 2 in Figure 3.25, the receiver reacknowledges
+(rather than ignores) already received packets with certain sequence numbers below
+the current window base. You should convince yourself that this reacknowledgment
+
+is indeed needed. Given the sender and receiver sequence number spaces in Fig-
+ure 3.23, for example, if there is no ACK for packet send_base propagating from
+
+1. Data received from above. When data is received from above, the SR sender
+checks the next available sequence number for the packet. If the sequence
+
+number is within the sender’s window, the data is packetized and sent; other-
+wise it is either bu!ered or returned to the upper layer for later transmission,
+
+as in GBN.
+2. Timeout. Timers are again used to protect against lost packets. However, each
+packet must now have its own logical timer, since only a single packet will
+be transmitted on timeout. A single hardware timer can be used to mimic the
+operation of multiple logical timers [Varghese 1997].
+3. ACK received. If an ACK is received, the SR sender marks that packet as
+having been received, provided it is in the window. If the packet’s sequence
+number is equal to send_base, the window base is moved forward to the
+unacknowledged packet with the smallest sequence number. If the window
+moves and there are untransmitted packets with sequence numbers that now
+fall within the window, these packets are transmitted.
+Figure 3.24 ♦ SR sender events and actions
+
+1. Packet with sequence number in [rcv_base, rcv_base+N-1]is cor-
+rectly received. In this case, the received packet falls within the receiver’s win-
+dow and a selective ACK packet is returned to the sender. If the packet was not
+
+previously received, it is bu!ered. If this packet has a sequence number equal to
+the base of the receive window (rcv_base in Figure 3.22), then this packet,
+and any previously bu!ered and consecutively numbered (beginning with
+rcv_base) packets are delivered to the upper layer. The receive window is
+then moved forward by the number of packets delivered to the upper layer. As
+an example, consider Figure 3.26. When a packet with a s

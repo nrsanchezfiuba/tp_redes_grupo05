@@ -8,6 +8,8 @@ from common.protocol.stop_and_wait import StopAndWait
 from common.skt.connection_socket import ConnectionSocket
 from common.skt.packet import HeaderFlags, Packet
 
+MAX_SYN_ACK_TIMEOUT: float = 5
+
 
 class Client:
     def __init__(self, args: Namespace, selected_mode: str) -> None:
@@ -77,6 +79,12 @@ class Client:
     ) -> None:
         await self._send_mode_and_name(connection_skt, HeaderFlags.UPLOAD)
         await protocol.send_file(self.name, self.dst, HeaderFlags.UPLOAD.value)
+        try:
+            await asyncio.wait_for(connection_skt.recv(), timeout=MAX_SYN_ACK_TIMEOUT)
+        except asyncio.TimeoutError:
+            raise Exception(
+                "[Client] Timeout occurred while waiting for acknowledgment"
+            )
         print(f"[Client] File {self.name} uploaded successfully")
 
     def run(self) -> None:

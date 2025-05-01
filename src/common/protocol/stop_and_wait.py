@@ -96,6 +96,7 @@ class StopAndWait(Protocol):
 
                 if self._is_transfer_complete(packet):
                     self._print_debug("[DEBUG] Transfer complete")
+                    await self._send_fin_ack(expected_seq)
                     break
 
                 expected_seq = await self._process_data_packet(
@@ -212,6 +213,12 @@ class StopAndWait(Protocol):
         """Send an ACK for the given sequence number."""
         ack = Packet.for_ack(seq_num, 0, HeaderFlags.STOP_WAIT)
         self._print_debug(f"[DEBUG] Sending ACK for seq={seq_num}")
+        await self.socket.send(ack)
+
+    async def _send_fin_ack(self, seq_num: int) -> None:
+        """Send a FIN_ACK for the given sequence number."""
+        ack = Packet.for_fin_ack(seq_num, 0, HeaderFlags.STOP_WAIT)
+        self._print_debug(f"[DEBUG] Sending FIN ACK for seq={seq_num}")
         await self.socket.send(ack)
 
     def _is_transfer_complete(self, packet: Packet) -> bool:
