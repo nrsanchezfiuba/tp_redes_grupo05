@@ -12,6 +12,7 @@ class Protocol(ABC):
 
     @classmethod
     def from_connection(cls, conn: ConnectionSocket, config: Config) -> "Protocol":
+        # In-line import to avoid circular dependency
         from common.protocol.go_back_n import GoBackN
         from common.protocol.stop_and_wait import StopAndWait
 
