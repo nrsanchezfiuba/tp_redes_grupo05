@@ -22,7 +22,7 @@ function my_protocol.dissector(tvbuf, pinfo, tree)
         return {}
     end
 
-    local data_length = bit.band(tvbuf(0,2):uint(), 0x03FF)
+    local data_length = bit.band(tvbuf(0, 2):uint(), 0x03FF)
     local total_length = 6 + data_length
 
     if data_length > 1024 then
@@ -35,23 +35,23 @@ function my_protocol.dissector(tvbuf, pinfo, tree)
         return {}
     end
 
-    local subtree = tree:add(my_protocol, tvbuf(0,total_length), string.format("TP1 Redes (%d bytes)", total_length))
+    local subtree = tree:add(my_protocol, tvbuf(0, total_length), string.format("TP1 Redes (%d bytes)", total_length))
 
-    local flags_and_length = tvbuf(0,2):uint()
+    local flags_and_length = tvbuf(0, 2):uint()
 
     local flags_subtree = subtree:add("Flags")
-    flags_subtree:add(fields[1], tvbuf(0,2))  -- PRT
-    flags_subtree:add(fields[2], tvbuf(0,2))  -- MOD
-    flags_subtree:add(fields[3], tvbuf(0,2))  -- SYN
-    flags_subtree:add(fields[4], tvbuf(0,2))  -- FIN
-    flags_subtree:add(fields[5], tvbuf(0,2))  -- ACK
+    flags_subtree:add(fields[1], tvbuf(0, 2)) -- PRT
+    flags_subtree:add(fields[2], tvbuf(0, 2)) -- MOD
+    flags_subtree:add(fields[3], tvbuf(0, 2)) -- SYN
+    flags_subtree:add(fields[4], tvbuf(0, 2)) -- FIN
+    flags_subtree:add(fields[5], tvbuf(0, 2)) -- ACK
 
-    subtree:add(fields[6], tvbuf(0,2))  -- Length
-    subtree:add(fields[7], tvbuf(2,2))  -- Seq Num
-    subtree:add(fields[8], tvbuf(4,2))  -- ACK Num
+    subtree:add(fields[6], tvbuf(0, 2))      -- Length
+    subtree:add(fields[7], tvbuf(2, 2))      -- Seq Num
+    subtree:add(fields[8], tvbuf(4, 2))      -- ACK Num
 
     if data_length > 0 then
-        local data = tvbuf(6,data_length)
+        local data = tvbuf(6, data_length)
         subtree:add(fields[9], data)
     end
 
@@ -64,9 +64,9 @@ function my_protocol.dissector(tvbuf, pinfo, tree)
         protocol_name = "GBN"
     end
 
-    len = bit.band(flags_and_length, 0x03FF)
-    seq = tvbuf(2,2):uint()
-    ack = tvbuf(4,2):uint()
+    local len = bit.band(flags_and_length, 0x03FF)
+    local seq = tvbuf(2, 2):uint()
+    local ack = tvbuf(4, 2):uint()
 
     -- Configurar columna de información
     local info = string.format("%d -> %d Len=%d,Seq=%d,Ack=%d [Protocol: %s]",
