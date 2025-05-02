@@ -1,5 +1,5 @@
-from client.utils.client import Client
-from common.args_parser import ArgsParser
+from lib.client.client import Client
+from lib.common.args_parser import ArgsParser
 
 
 def main() -> None:

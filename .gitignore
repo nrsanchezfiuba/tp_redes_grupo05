@@ -5,3 +5,4 @@ coverage.xml
 __pycache__/
 **/__pycache__/
 storage/
+*.txt

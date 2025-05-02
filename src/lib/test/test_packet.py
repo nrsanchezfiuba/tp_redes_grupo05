@@ -1,6 +1,6 @@
 import unittest
 
-from common.skt.packet import HeaderFlags, HeaderMasks, Packet
+from lib.common.skt.packet import HeaderFlags, HeaderMasks, Packet
 
 
 class TestPacket(unittest.TestCase):
@@ -85,7 +85,7 @@ class TestPacket(unittest.TestCase):
 
     def test_complete_sw_download(self) -> None:
         flags = (
-            HeaderFlags.STOP_WAIT.value
+            HeaderFlags.SW.value
             | HeaderFlags.SYN.value
             | HeaderFlags.ACK.value
             | HeaderFlags.DOWNLOAD.value
@@ -119,7 +119,7 @@ class TestPacket(unittest.TestCase):
 
         self.assertTrue(new_pckt.is_syn())
         self.assertTrue(new_pckt.is_ack())
-        self.assertEqual(new_pckt.get_protocol_type(), HeaderFlags.STOP_WAIT)
+        self.assertEqual(new_pckt.get_protocol_type(), HeaderFlags.SW)
         self.assertEqual(new_pckt.get_mode(), HeaderFlags.DOWNLOAD)
 
     def test_get_ack_or_seq_num(self) -> None:

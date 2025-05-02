@@ -49,6 +49,14 @@ class ArgsParser:
                     "help": "error recovery protocol",
                 },
             ),
+            (
+                ["--log-file"],
+                {
+                    "type": str,
+                    "default": "",
+                    "help": "log file path",
+                },
+            ),
         ]
 
         if self.include_storage:

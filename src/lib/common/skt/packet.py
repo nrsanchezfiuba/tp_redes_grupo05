@@ -4,6 +4,8 @@ from typing import NamedTuple
 
 HEADER_PACK_FORMAT: str = "!HHH"  # Big-endian unsigned short (2 bytes)
 
+MAX_SEQ_NUM: int = 65536
+
 
 class HeaderMasks(Enum):
     PROTOCOLTYPE = 0xC000  # 1100_0000_0000_0000
@@ -15,13 +17,14 @@ class HeaderMasks(Enum):
 
 
 class HeaderFlags(Enum):
-    STOP_WAIT = 0x0000
+    SW = 0x0000
     GBN = 0x4000
     UPLOAD = 0x2000
     DOWNLOAD = 0x0000
     SYN = 0x1000
     FIN = 0x0800
     ACK = 0x0400
+    NONE = 0xFFFF
 
 
 class HeaderData(NamedTuple):
@@ -40,10 +43,9 @@ class HeaderData(NamedTuple):
 
 
 class Packet:
-
     @classmethod
-    def for_ack(cls, seq_num: int, ack_num: int) -> "Packet":
-        return cls(seq_num, ack_num, b"", HeaderFlags.ACK.value)
+    def for_ack(cls, seq_num: int, ack_num: int, protocol: HeaderFlags) -> "Packet":
+        return cls(seq_num, ack_num, b"", HeaderFlags.ACK.value | protocol.value)
 
     @classmethod
     def from_bytes(cls, packet: bytes) -> "Packet":
@@ -108,7 +110,7 @@ class Packet:
             f"length={self.header_data.length}, "
             f"seq_num={self.header_data.seq_num}, "
             f"ack_num={self.header_data.ack_num}, "
-            f"data={self.data!r})"
+            f"data={self.data[:8]!r})"
         )
 
     def is_syn(self) -> bool:
@@ -134,13 +136,3 @@ class Packet:
 
     def get_data(self) -> bytes:
         return self.data
-
-
-if __name__ == "__main__":
-    # Example
-    packet = Packet(1, 2, b"Hello", flags=HeaderFlags.SYN.value)
-    print(packet)
-    packed = packet.to_bytes()
-    print(f"Packed: {packed!r}")
-    unpacked_packet = Packet.from_bytes(packed)
-    print(unpacked_packet)

@@ -20,6 +20,37 @@ Para iniciar el proyecto, utilice el siguiente comando:
 ./run_mininet.sh run
 ```
 
+## Instalar plugin de Wireshark
+
+Crear la siguiente carpeta
+
+```bash
+mkdir -p ~/.local/lib/wireshark/plugins
+```
+
+Una vez copiada, copiar el plugin en ese directorio
+
+```bash
+cp ./plugin.lua ~/.local/lib/wireshark/plugins
+```
+
+En caso de querer desarrollar el plugin, recomiendo ejecutar los siguintes comandos
+
+Primero eliminamos el plugin si lo copiamos
+
+```bash
+rm ~/.local/lib/wireshark/plugins/plugin.lua
+```
+
+Segundo, creamos un link hard
+
+```bash
+ln ./plugin.lua ~/.local/lib/wireshark/plugins/plugin.lua
+```
+
+Luego, cada vez que realizamos un cambio sobre el archivo `./plugin.lua`, ejecutamos
+la combinacion de teclas: `Ctrl + Shift + L` (Analyze > Reload Lua plugin) para reflejar
+los cambios en Wireshark.
 
 ### _Troubleshooting_
 Si encuentra inconvenientes al ejecutar el ejecutable `./run_mininet.sh`, intente ejecutarlo con privilegios de administrador utilizando `sudo`.
