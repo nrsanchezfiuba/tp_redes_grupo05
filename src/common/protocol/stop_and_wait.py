@@ -9,22 +9,12 @@ from common.skt.packet import HeaderFlags, Packet
 
 class StopAndWait(Protocol):
     def __init__(self, socket: ConnectionSocket, config: Config):
-        super().__init__(socket)
+        super().__init__(socket, config)
         self.config = config
         self.ack_num = 0
         self.seq_num = 0
 
-    async def initiate_transaction(self) -> None:
-        await self._initiate_transaction(self.config)
-
-    async def handle_connection(self) -> None:
-        await self._handle_connection(self.config)
-
-    def _print_debug(self, message: str) -> None:
-        if self.config.verbose:
-            print(message)
-
-    async def recv_file(self, file_manager: FileManager, mode: int) -> None:
+    async def recv_file(self, file_manager: FileManager) -> None:
         while True:
             try:
                 packet = await asyncio.wait_for(self.socket.recv(), timeout=5.0)
@@ -32,15 +22,13 @@ class StopAndWait(Protocol):
                     break
 
                 if packet.get_seq_num() == self.ack_num:
-                    self._print_debug(
-                        f"[DEBUG] Received valid packet seq={self.ack_num}"
-                    )
+                    print(f"[DEBUG] Received valid packet seq={self.ack_num}")
                     file_manager.write_chunk(packet.get_data())
                     ack = Packet(
                         ack_num=self.ack_num,
                         flags=HeaderFlags.SW.value
                         | HeaderFlags.ACK.value
-                        | packet.get_mode().value,
+                        | self.mode.value,
                     )
                     await self.socket.send(ack)
                     self.ack_num = 1 - self.ack_num
@@ -49,13 +37,13 @@ class StopAndWait(Protocol):
                         ack_num=self.ack_num,
                         flags=HeaderFlags.SW.value
                         | HeaderFlags.ACK.value
-                        | packet.get_mode().value,
+                        | self.mode.value,
                     )
                     await self.socket.send(ack)
             except TimeoutError:
                 continue
 
-    async def send_file(self, file_manager: FileManager, mode: int) -> None:
+    async def send_file(self, file_manager: FileManager) -> None:
         while True:
             block = file_manager.read_chunk()
             if not block:
@@ -65,7 +53,7 @@ class StopAndWait(Protocol):
             packet = Packet(
                 seq_num=self.seq_num,
                 data=block,
-                flags=HeaderFlags.SW.value | mode,
+                flags=HeaderFlags.SW.value | self.mode.value,
             )
             for attempt in range(3):
                 try:
@@ -75,12 +63,12 @@ class StopAndWait(Protocol):
 
                     await asyncio.sleep(0.5)
                 except TimeoutError as e:
-                    self._print_debug(f"[DEBUG] Attempt {attempt + 1} failed: {e}")
+                    print(f"[DEBUG] Attempt {attempt + 1} failed: {e}")
                     await asyncio.sleep(0.5)
 
     async def _send_and_wait_ack(self, packet: Packet, timeout: float = 2.0) -> bool:
         seq_num = packet.get_seq_num()
-        self._print_debug(f"[DEBUG] Sending packet seq={seq_num}")
+        print(f"[DEBUG] Sending packet seq={seq_num}")
 
         await self.socket.send(packet)
         ack_packet = await asyncio.wait_for(self.socket.recv(), timeout)

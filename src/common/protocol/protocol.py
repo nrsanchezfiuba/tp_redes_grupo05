@@ -11,8 +11,10 @@ INITIAL_RETRIES: int = 5
 
 
 class Protocol(ABC):
-    def __init__(self, socket: ConnectionSocket):
+    def __init__(self, socket: ConnectionSocket, config: Config) -> None:
         self.socket = socket
+        self.config = config
+        self.mode: HeaderFlags = HeaderFlags.NONE
 
     @classmethod
     def from_connection(cls, conn: ConnectionSocket, config: Config) -> "Protocol":
@@ -29,25 +31,17 @@ class Protocol(ABC):
                 raise ValueError("Invalid protocol type")
 
     @abstractmethod
-    async def initiate_transaction(self) -> None:
-        raise NotImplementedError("Must implement initiate_transaction method")
-
-    @abstractmethod
-    async def handle_connection(self) -> None:
-        raise NotImplementedError("Must implement handle_connection method")
-
-    @abstractmethod
-    async def recv_file(self, file_manager: FileManager, mode: int) -> None:
+    async def recv_file(self, file_manager: FileManager) -> None:
         raise NotImplementedError("Must implement recv_file method")
 
     @abstractmethod
-    async def send_file(self, file_manager: FileManager, mode: int) -> None:
+    async def send_file(self, file_manager: FileManager) -> None:
         raise NotImplementedError("Must implement send_file method")
 
-    async def _initiate_transaction(self, config: Config) -> None:
+    async def initiate_transaction(self) -> None:
         file_name_pkt = Packet(
-            data=config.client_filename.encode(),
-            flags=config.protocol_type.value | config.client_mode.value,
+            data=self.config.client_filename.encode(),
+            flags=self.config.protocol_type.value | self.config.client_mode.value,
         )
         retries = 0
         while retries < INITIAL_RETRIES:
@@ -65,70 +59,73 @@ class Protocol(ABC):
             fin_pkt = Packet(
                 flags=HeaderFlags.SW.value
                 | HeaderFlags.FIN.value
-                | config.client_mode.value,
+                | self.config.client_mode.value,
             )
             await self.socket.send(fin_pkt)
             raise TimeoutError("Failed to receive ACK for filename packet")
 
-        match config.client_mode:
+        self.mode = self.config.client_mode
+        match self.mode:
             case HeaderFlags.UPLOAD:
                 file_manager = FileManager(
-                    config.client_dst,
-                    config.client_filename,
+                    self.config.client_dst,
+                    self.config.client_filename,
                     FileOperation.READ,
                 )
-                await self.send_file(file_manager, config.client_mode.value)
+                await self.send_file(file_manager)
             case HeaderFlags.DOWNLOAD:
                 file_manager = FileManager(
-                    config.client_dst,
-                    config.client_filename,
+                    self.config.client_dst,
+                    self.config.client_filename,
                     FileOperation.WRITE,
                 )
-                await self.recv_file(file_manager, config.client_mode.value)
+                await self.recv_file(file_manager)
             case _:
-                raise ValueError(f"Invalid mode in packet {config.client_mode}")
+                raise ValueError(f"Invalid mode in packet {self.config.client_mode}")
 
-    async def _handle_connection(self, config: Config) -> None:
+    async def handle_connection(self) -> None:
         file_name_pkt = await self.socket.recv()
-        mode = file_name_pkt.get_mode()
         file_name = file_name_pkt.get_data().decode().strip()
-        if file_name_pkt.get_protocol_type() != config.protocol_type:
+        self.mode = file_name_pkt.get_mode()
+        if file_name_pkt.get_protocol_type() != self.config.protocol_type:
             fin_pkt = Packet(
-                flags=config.protocol_type.value | HeaderFlags.FIN.value | mode.value,
+                flags=self.config.protocol_type.value
+                | HeaderFlags.FIN.value
+                | self.mode.value,
             )
             await self.socket.send(fin_pkt)
             return
         try:
-            match mode:
+            match self.mode:
                 case HeaderFlags.UPLOAD:
                     file_manager = FileManager(
-                        config.server_dirpath, file_name, FileOperation.WRITE
+                        self.config.server_dirpath, file_name, FileOperation.WRITE
                     )
                     ack = Packet(
                         ack_num=file_name_pkt.get_seq_num(),
-                        flags=config.protocol_type.value
+                        flags=self.config.protocol_type.value
                         | HeaderFlags.ACK.value
-                        | mode.value,
+                        | self.mode.value,
                     )
                     await self.socket.send(ack)
-                    await self.recv_file(file_manager, mode.value)
+                    await self.recv_file(file_manager)
                 case HeaderFlags.DOWNLOAD:
                     file_manager = FileManager(
-                        config.server_dirpath, file_name, FileOperation.READ
+                        self.config.server_dirpath, file_name, FileOperation.READ
                     )
                     ack = Packet(
                         ack_num=file_name_pkt.get_seq_num(),
-                        flags=config.protocol_type.value
+                        flags=self.config.protocol_type.value
                         | HeaderFlags.ACK.value
                         | file_name_pkt.get_mode().value,
                     )
                     await self.socket.send(ack)
-                    await self.send_file(file_manager, mode.value)
+                    await self.send_file(file_manager)
                 case _:
                     raise ValueError("Invalid mode in packet")
         except FileNotFoundError:
             print(f"[ERROR] File not found: {file_name}")
             fin_pkt = Packet(
-                config.protocol_type.value | HeaderFlags.FIN.value,
+                self.config.protocol_type.value | HeaderFlags.FIN.value,
             )
             await self.socket.send(fin_pkt)

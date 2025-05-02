@@ -24,6 +24,7 @@ class HeaderFlags(Enum):
     SYN = 0x1000
     FIN = 0x0800
     ACK = 0x0400
+    NONE = 0xFFFF
 
 
 class HeaderData(NamedTuple):
