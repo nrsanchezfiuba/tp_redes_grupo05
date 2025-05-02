@@ -7,7 +7,7 @@ from common.logger import Logger
 from common.skt.connection_socket import ConnectionSocket
 from common.skt.packet import HeaderFlags, Packet
 
-TIMEOUT_END_CONECTION: float = 1.0
+TIMEOUT_INTERVAL: float = 1.0
 INITIAL_RETRIES: int = 5
 
 
@@ -54,8 +54,12 @@ class Protocol(ABC):
             try:
                 await self.socket.send(file_name_pkt)
                 ack_pkt = await asyncio.wait_for(
-                    self.socket.recv(), timeout=TIMEOUT_END_CONECTION
+                    self.socket.recv(), timeout=TIMEOUT_INTERVAL
                 )
+
+                if self.socket.is_closed():
+                    return
+
                 if ack_pkt.is_ack():
                     break
             except asyncio.TimeoutError:
@@ -67,14 +71,15 @@ class Protocol(ABC):
             raise TimeoutError("Failed to receive ACK for filename packet")
 
         self.mode = self.config.client_mode
+        file_op = (
+            FileOperation.READ
+            if self.mode == HeaderFlags.UPLOAD
+            else FileOperation.WRITE
+        )
         file_manager = FileManager(
             self.config.client_dst,
             self.config.client_filename,
-            (
-                FileOperation.READ
-                if self.mode == HeaderFlags.UPLOAD
-                else FileOperation.WRITE
-            ),
+            file_op,
         )
 
         if self.mode == HeaderFlags.UPLOAD:
@@ -88,7 +93,7 @@ class Protocol(ABC):
         for _ in range(INITIAL_RETRIES):
             try:
                 file_name_pkt = await asyncio.wait_for(
-                    self.socket.recv(), timeout=TIMEOUT_END_CONECTION
+                    self.socket.recv(), timeout=TIMEOUT_INTERVAL
                 )
 
                 if self.socket.is_closed():

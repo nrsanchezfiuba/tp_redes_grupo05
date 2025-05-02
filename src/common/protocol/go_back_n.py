@@ -42,8 +42,7 @@ class GoBackN(Protocol):
                         | self.mode.value,
                     )
                     await self.socket.send(ack)
-                    self.ack_num += 1
-                    self.ack_num %= MAX_SEQ_NUM
+                    self.ack_num = (self.ack_num + 1) % MAX_SEQ_NUM
 
         except Exception as e:
             self.logger.error(f"Receive failed: {e}")
