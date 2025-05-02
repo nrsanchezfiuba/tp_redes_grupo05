@@ -8,7 +8,6 @@ from common.protocol.protocol import Protocol
 from common.skt.connection_socket import ConnectionSocket
 from common.skt.packet import MAX_SEQ_NUM, HeaderFlags, Packet
 
-TIMEOUT_END_CONECTION: float = 5
 WINDOW_SIZE: int = 5
 RETRANSMIT_TIMEOUT: float = 0.5
 

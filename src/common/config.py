@@ -4,7 +4,7 @@ from argparse import Namespace
 from common.skt.packet import HeaderFlags
 
 protocol_mapping = {
-    "SW": HeaderFlags.STOP_WAIT,
+    "SW": HeaderFlags.SW,
     "GBN": HeaderFlags.GBN,
 }
 

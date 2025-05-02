@@ -46,9 +46,9 @@ class Client:
             print(f"[Client] Connecting to {self.config.host}:{self.config.port}")
 
         connection_skt = ConnectionSocket.for_client(
-            (self.config.host, self.config.port)
+            (self.config.host, self.config.port), self.config.protocol_type
         )
-        await connection_skt.connect(self.config.protocol_type)
+        await connection_skt.connect()
 
         protocol = Protocol.from_connection(connection_skt, self.config)
         await protocol.initiate_transaction()

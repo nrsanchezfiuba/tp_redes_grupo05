@@ -13,7 +13,7 @@ class AcceptorSocket:
         AcceptorSocket is responsible for accepting incoming connections
         and demultiplexing packets to the appropriate flow queue.
         """
-        if proto_type not in (HeaderFlags.GBN, HeaderFlags.STOP_WAIT):
+        if proto_type not in (HeaderFlags.GBN, HeaderFlags.SW):
             raise ValueError("Invalid protocol type")
         self.proto_type = proto_type
         self.udp_skt = UDPSocket()
@@ -45,11 +45,10 @@ class AcceptorSocket:
                 # Hanshake the new connection
                 q: asyncio.Queue[Packet] = self.flow_manager.add_flow(sender)
                 await self._send_syn_ack(sender)
-                return await ConnectionSocket.for_server(sender, q)
+                return await ConnectionSocket.for_server(sender, q, self.proto_type)
             elif pkt.is_fin():
+                await self.flow_manager.demultiplex_packet(sender, pkt)
                 self.flow_manager.remove_flow(sender)
-                if not pkt.is_ack():
-                    await self._send_fin_ack(sender)
             else:
                 await self.flow_manager.demultiplex_packet(sender, pkt)
 
@@ -61,12 +60,6 @@ class AcceptorSocket:
             flags=HeaderFlags.SYN.value | HeaderFlags.ACK.value | self.proto_type.value,
         )
         await self.udp_skt.send_all(syn_ack_pkt.to_bytes(), sender)
-
-    async def _send_fin_ack(self, sender: Tuple[str, int]) -> None:
-        fin_ack_pkt = Packet(
-            flags=HeaderFlags.FIN.value | HeaderFlags.ACK.value | self.proto_type.value,
-        )
-        await self.udp_skt.send_all(fin_ack_pkt.to_bytes(), sender)
 
     async def _send_fin(self, sender: Tuple[str, int]) -> None:
         fin_pkt = Packet(

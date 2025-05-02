@@ -17,7 +17,7 @@ class HeaderMasks(Enum):
 
 
 class HeaderFlags(Enum):
-    STOP_WAIT = 0x0000
+    SW = 0x0000
     GBN = 0x4000
     UPLOAD = 0x2000
     DOWNLOAD = 0x0000
