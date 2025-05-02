@@ -1,5 +1,5 @@
-from common.args_parser import ArgsParser
-from server.utils.server import Server
+from lib.common.args_parser import ArgsParser
+from lib.server.server import Server
 
 
 def main() -> None:

@@ -1,7 +1,7 @@
 import asyncio
 from typing import Dict, Tuple
 
-from common.skt.packet import Packet
+from lib.common.skt.packet import Packet
 
 
 class FlowManager:

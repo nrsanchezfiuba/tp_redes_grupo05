@@ -1,9 +1,9 @@
 import asyncio
 from typing import Optional, Tuple
 
-from common.logger import Logger
-from common.skt.packet import HeaderFlags, Packet
-from common.skt.udp_socket import UDPSocket
+from lib.common.logger import Logger
+from lib.common.skt.packet import HeaderFlags, Packet
+from lib.common.skt.udp_socket import UDPSocket
 
 
 class ConnectionSocket:

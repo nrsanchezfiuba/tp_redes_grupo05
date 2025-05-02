@@ -3,12 +3,12 @@ from asyncio.tasks import Task
 from collections import deque
 from typing import Any
 
-from common.config import Config
-from common.file_ops.file_manager import FileManager
-from common.logger import Logger
-from common.protocol.protocol import TIMEOUT_INTERVAL, Protocol
-from common.skt.connection_socket import ConnectionSocket
-from common.skt.packet import MAX_SEQ_NUM, HeaderFlags, Packet
+from lib.common.config import Config
+from lib.common.file_ops.file_manager import FileManager
+from lib.common.logger import Logger
+from lib.common.protocol.protocol import TIMEOUT_INTERVAL, Protocol
+from lib.common.skt.connection_socket import ConnectionSocket
+from lib.common.skt.packet import MAX_SEQ_NUM, HeaderFlags, Packet
 
 WINDOW_SIZE: int = 5
 

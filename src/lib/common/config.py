@@ -1,7 +1,7 @@
 import os
 from argparse import Namespace
 
-from common.skt.packet import HeaderFlags
+from lib.common.skt.packet import HeaderFlags
 
 protocol_mapping = {
     "SW": HeaderFlags.SW,

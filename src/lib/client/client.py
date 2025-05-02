@@ -1,10 +1,10 @@
 import asyncio
 from argparse import Namespace
 
-from common.config import Config
-from common.logger import Logger
-from common.protocol.protocol import Protocol
-from common.skt.connection_socket import ConnectionSocket
+from lib.common.config import Config
+from lib.common.logger import Logger
+from lib.common.protocol.protocol import Protocol
+from lib.common.skt.connection_socket import ConnectionSocket
 
 
 class Client:

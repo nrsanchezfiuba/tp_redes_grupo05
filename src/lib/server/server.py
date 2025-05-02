@@ -2,12 +2,12 @@ import asyncio
 from argparse import Namespace
 from asyncio.queues import Queue
 
-from common.config import Config
-from common.flow_manager import FlowManager
-from common.logger import Logger
-from common.protocol.protocol import Protocol
-from common.skt.acceptor_socket import AcceptorSocket
-from common.skt.connection_socket import ConnectionSocket
+from lib.common.config import Config
+from lib.common.flow_manager import FlowManager
+from lib.common.logger import Logger
+from lib.common.protocol.protocol import Protocol
+from lib.common.skt.acceptor_socket import AcceptorSocket
+from lib.common.skt.connection_socket import ConnectionSocket
 
 
 class Server:

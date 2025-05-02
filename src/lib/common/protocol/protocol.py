@@ -1,11 +1,11 @@
 import asyncio
 from abc import ABC, abstractmethod
 
-from common.config import Config
-from common.file_ops.file_manager import FileManager, FileOperation
-from common.logger import Logger
-from common.skt.connection_socket import ConnectionSocket
-from common.skt.packet import HeaderFlags, Packet
+from lib.common.config import Config
+from lib.common.file_ops.file_manager import FileManager, FileOperation
+from lib.common.logger import Logger
+from lib.common.skt.connection_socket import ConnectionSocket
+from lib.common.skt.packet import HeaderFlags, Packet
 
 TIMEOUT_INTERVAL: float = 1.0
 RETRANSMISION_RETRIES: int = 5
@@ -25,8 +25,8 @@ class Protocol(ABC):
         cls, conn: ConnectionSocket, config: Config, logger: Logger
     ) -> "Protocol":
         # In-line import to avoid circular dependency
-        from common.protocol.go_back_n import GoBackN
-        from common.protocol.stop_and_wait import StopAndWait
+        from lib.common.protocol.go_back_n import GoBackN
+        from lib.common.protocol.stop_and_wait import StopAndWait
 
         match config.protocol_type:
             case HeaderFlags.SW:
