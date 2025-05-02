@@ -136,3 +136,6 @@ class Packet:
 
     def get_data(self) -> bytes:
         return self.data
+
+    def get_length(self) -> int:
+        return self.header_data.length

@@ -5,6 +5,9 @@ from lib.common.logger import Logger
 from lib.common.skt.packet import HeaderFlags, Packet
 from lib.common.skt.udp_socket import UDPSocket
 
+HANDSHAKE_TIMEOUT_INTERVAL: float = 1.5
+HANDSHAKE_RETRIES: int = 5
+
 
 class ConnectionSocket:
     @classmethod
@@ -38,16 +41,27 @@ class ConnectionSocket:
         self.logger: Logger = logger
 
     async def connect(self) -> None:
-        await self.send(Packet(flags=HeaderFlags.SYN.value | self.protocol.value))
-        pkt = await self.recv()
-        if pkt.is_syn() and pkt.is_ack():
-            self.logger.debug(
-                f"[ConnectionSocket] Connection established with {self.addr}"
-            )
-        elif pkt.is_fin():
-            self.logger.debug(f"[ConnectionSocket] Connection closed by {self.addr}")
+        for attempt in range(HANDSHAKE_RETRIES):
+            await self.send(Packet(flags=HeaderFlags.SYN.value | self.protocol.value))
+            try:
+                pkt = await asyncio.wait_for(
+                    self.recv(), timeout=HANDSHAKE_TIMEOUT_INTERVAL
+                )
+                if pkt.is_syn() and pkt.is_ack():
+                    self.logger.debug(
+                        f"[ConnectionSocket] Connection established with {self.addr}"
+                    )
+                    break
+                elif pkt.is_fin():
+                    self.logger.debug(
+                        f"[ConnectionSocket] Connection closed by {self.addr}"
+                    )
+                    break
+            except TimeoutError:
+                self.logger.debug(f"[ConnectionSocket] Retrying... (Attempt {attempt})")
+                await asyncio.sleep(0.5)
         else:
-            raise RuntimeError(
+            raise TimeoutError(
                 f"[ConnectionSocket] Failed to establish connection with {self.addr}"
             )
 

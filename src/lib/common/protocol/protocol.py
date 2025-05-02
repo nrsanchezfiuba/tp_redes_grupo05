@@ -8,7 +8,7 @@ from lib.common.skt.connection_socket import ConnectionSocket
 from lib.common.skt.packet import HeaderFlags, Packet
 
 TIMEOUT_INTERVAL: float = 1.0
-RETRANSMISION_RETRIES: int = 5
+RETRANSMISSION_RETRIES: int = 5
 
 
 class Protocol(ABC):
@@ -50,7 +50,7 @@ class Protocol(ABC):
             flags=self.config.protocol_type.value | self.config.client_mode.value,
         )
 
-        for _ in range(RETRANSMISION_RETRIES):
+        for _ in range(RETRANSMISSION_RETRIES):
             try:
                 await self.socket.send(file_name_pkt)
                 ack_pkt = await asyncio.wait_for(
@@ -60,7 +60,7 @@ class Protocol(ABC):
                 if self.socket.is_closed():
                     return
 
-                if ack_pkt.is_ack():
+                if ack_pkt.is_ack() or ack_pkt.get_length() > 0:
                     break
             except asyncio.TimeoutError:
                 pass
@@ -89,7 +89,7 @@ class Protocol(ABC):
             raise ValueError(f"Invalid mode in packet {self.config.client_mode}")
 
     async def handle_connection(self) -> None:
-        for _ in range(RETRANSMISION_RETRIES):
+        for _ in range(RETRANSMISSION_RETRIES):
             try:
                 file_name_pkt = await asyncio.wait_for(
                     self.socket.recv(), timeout=TIMEOUT_INTERVAL

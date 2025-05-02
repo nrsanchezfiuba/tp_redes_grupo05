@@ -4,7 +4,7 @@ from lib.common.config import Config
 from lib.common.file_ops.file_manager import FileManager
 from lib.common.logger import Logger
 from lib.common.protocol.protocol import (
-    RETRANSMISION_RETRIES,
+    RETRANSMISSION_RETRIES,
     TIMEOUT_INTERVAL,
     Protocol,
 )
@@ -43,7 +43,7 @@ class StopAndWait(Protocol):
                 await self.socket.disconnect()
                 break
 
-            for attempt in range(RETRANSMISION_RETRIES):
+            for attempt in range(RETRANSMISSION_RETRIES):
                 try:
                     await self._send_data(block)
                     self.seq_num = 1 - self.seq_num
