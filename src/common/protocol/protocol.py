@@ -8,7 +8,7 @@ from common.skt.connection_socket import ConnectionSocket
 from common.skt.packet import HeaderFlags, Packet
 
 TIMEOUT_INTERVAL: float = 1.0
-INITIAL_RETRIES: int = 5
+RETRANSMISION_RETRIES: int = 5
 
 
 class Protocol(ABC):
@@ -50,7 +50,7 @@ class Protocol(ABC):
             flags=self.config.protocol_type.value | self.config.client_mode.value,
         )
 
-        for _ in range(INITIAL_RETRIES):
+        for _ in range(RETRANSMISION_RETRIES):
             try:
                 await self.socket.send(file_name_pkt)
                 ack_pkt = await asyncio.wait_for(
@@ -71,15 +71,14 @@ class Protocol(ABC):
             raise TimeoutError("Failed to receive ACK for filename packet")
 
         self.mode = self.config.client_mode
-        file_op = (
-            FileOperation.READ
-            if self.mode == HeaderFlags.UPLOAD
-            else FileOperation.WRITE
-        )
         file_manager = FileManager(
             self.config.client_dst,
             self.config.client_filename,
-            file_op,
+            (
+                FileOperation.READ
+                if self.mode == HeaderFlags.UPLOAD
+                else FileOperation.WRITE
+            ),
         )
 
         if self.mode == HeaderFlags.UPLOAD:
@@ -90,7 +89,7 @@ class Protocol(ABC):
             raise ValueError(f"Invalid mode in packet {self.config.client_mode}")
 
     async def handle_connection(self) -> None:
-        for _ in range(INITIAL_RETRIES):
+        for _ in range(RETRANSMISION_RETRIES):
             try:
                 file_name_pkt = await asyncio.wait_for(
                     self.socket.recv(), timeout=TIMEOUT_INTERVAL
@@ -123,15 +122,14 @@ class Protocol(ABC):
             return
 
         try:
-            file_op = (
-                FileOperation.WRITE
-                if self.mode == HeaderFlags.UPLOAD
-                else FileOperation.READ
-            )
             file_manager = FileManager(
                 self.config.server_dirpath,
                 file_name,
-                file_op,
+                (
+                    FileOperation.WRITE
+                    if self.mode == HeaderFlags.UPLOAD
+                    else FileOperation.READ
+                ),
             )
 
             if self.mode == HeaderFlags.UPLOAD:

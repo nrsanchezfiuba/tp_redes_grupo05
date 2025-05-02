@@ -6,12 +6,11 @@ from typing import Any
 from common.config import Config
 from common.file_ops.file_manager import FileManager
 from common.logger import Logger
-from common.protocol.protocol import Protocol
+from common.protocol.protocol import TIMEOUT_INTERVAL, Protocol
 from common.skt.connection_socket import ConnectionSocket
 from common.skt.packet import MAX_SEQ_NUM, HeaderFlags, Packet
 
 WINDOW_SIZE: int = 5
-RETRANSMIT_TIMEOUT: float = 1.0
 
 
 class GoBackN(Protocol):
@@ -34,14 +33,7 @@ class GoBackN(Protocol):
                 elif packet.get_seq_num() == self.ack_num:
                     self.logger.debug(f"Received valid packet seq={self.ack_num}")
                     file_manager.write_chunk(packet.get_data())
-                    ack = Packet(
-                        seq_num=0,
-                        ack_num=self.ack_num,
-                        flags=HeaderFlags.GBN.value
-                        | HeaderFlags.ACK.value
-                        | self.mode.value,
-                    )
-                    await self.socket.send(ack)
+                    await self._send_ack()
                     self.ack_num = (self.ack_num + 1) % MAX_SEQ_NUM
 
         except Exception as e:
@@ -113,7 +105,7 @@ class GoBackN(Protocol):
 
     async def _timeout_handler(self) -> None:
         try:
-            await asyncio.sleep(RETRANSMIT_TIMEOUT)
+            await asyncio.sleep(TIMEOUT_INTERVAL)
             self.logger.debug(
                 f"[TIMEOUT] Retransmitting window: {self.base_seq_num} to {self.next_seq_num}"
             )
@@ -127,3 +119,10 @@ class GoBackN(Protocol):
             self._start_timer()  # Restart timer
         except asyncio.CancelledError:
             self.logger.debug("Timer cancelled and reset")
+
+    async def _send_ack(self) -> None:
+        ack = Packet(
+            ack_num=self.ack_num,
+            flags=HeaderFlags.GBN.value | HeaderFlags.ACK.value | self.mode.value,
+        )
+        await self.socket.send(ack)

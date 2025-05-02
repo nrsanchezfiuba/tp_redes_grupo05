@@ -3,11 +3,9 @@ import asyncio
 from common.config import Config
 from common.file_ops.file_manager import FileManager
 from common.logger import Logger
-from common.protocol.protocol import TIMEOUT_INTERVAL, Protocol
+from common.protocol.protocol import RETRANSMISION_RETRIES, TIMEOUT_INTERVAL, Protocol
 from common.skt.connection_socket import ConnectionSocket
 from common.skt.packet import HeaderFlags, Packet
-
-RESEND_RETRIES: int = 3
 
 
 class StopAndWait(Protocol):
@@ -28,22 +26,9 @@ class StopAndWait(Protocol):
                 if packet.get_seq_num() == self.ack_num:
                     self.logger.debug(f"Received valid packet seq={self.ack_num}")
                     file_manager.write_chunk(packet.get_data())
-                    ack = Packet(
-                        ack_num=self.ack_num,
-                        flags=HeaderFlags.SW.value
-                        | HeaderFlags.ACK.value
-                        | self.mode.value,
-                    )
-                    await self.socket.send(ack)
                     self.ack_num = 1 - self.ack_num
-                else:
-                    ack = Packet(
-                        ack_num=self.ack_num,
-                        flags=HeaderFlags.SW.value
-                        | HeaderFlags.ACK.value
-                        | self.mode.value,
-                    )
-                    await self.socket.send(ack)
+
+                await self._send_ack()
             except TimeoutError:
                 continue
 
@@ -54,18 +39,11 @@ class StopAndWait(Protocol):
                 await self.socket.disconnect()
                 break
 
-            packet = Packet(
-                seq_num=self.seq_num,
-                data=block,
-                flags=HeaderFlags.SW.value | self.mode.value,
-            )
-            for attempt in range(RESEND_RETRIES):
+            for attempt in range(RETRANSMISION_RETRIES):
                 try:
-                    if await self._send_and_wait_ack(packet):
-                        self.seq_num = 1 - self.seq_num
-                        break
-
-                    await asyncio.sleep(0.5)
+                    await self._send_data(block)
+                    self.seq_num = 1 - self.seq_num
+                    break
                 except TimeoutError as e:
                     self.logger.debug(f"Attempt {attempt + 1} failed: {e}")
                     await asyncio.sleep(0.5)
@@ -74,12 +52,23 @@ class StopAndWait(Protocol):
                 await self.socket.disconnect()
                 break
 
-    async def _send_and_wait_ack(
-        self, packet: Packet, timeout: float = TIMEOUT_INTERVAL
-    ) -> bool:
-        seq_num = packet.get_seq_num()
-        self.logger.debug(f"Sending packet seq={seq_num}")
+    async def _send_ack(self) -> None:
+        ack = Packet(
+            ack_num=self.ack_num,
+            flags=HeaderFlags.SW.value | HeaderFlags.ACK.value | self.mode.value,
+        )
+        await self.socket.send(ack)
 
+    async def _send_data(self, data: bytes) -> None:
+        self.logger.debug(f"Sending packet seq={self.seq_num}")
+        packet = Packet(
+            seq_num=self.seq_num,
+            data=data,
+            flags=HeaderFlags.SW.value | self.mode.value,
+        )
         await self.socket.send(packet)
-        ack_packet = await asyncio.wait_for(self.socket.recv(), timeout)
-        return ack_packet.is_ack()
+        ack_packet = await asyncio.wait_for(
+            self.socket.recv(), timeout=TIMEOUT_INTERVAL
+        )
+        if not ack_packet.is_ack():
+            raise TimeoutError("Failed to receive ACK for packet")
