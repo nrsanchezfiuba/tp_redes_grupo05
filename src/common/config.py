@@ -27,6 +27,7 @@ class Config:
         self.protocol_type: HeaderFlags = self._map_protocol(args.protocol)
         self.verbose: bool = args.verbose
         self.quiet: bool = args.quiet
+        self.log_file: str = args.log_file
 
         storage: str = ""
 

@@ -136,13 +136,3 @@ class Packet:
 
     def get_data(self) -> bytes:
         return self.data
-
-
-if __name__ == "__main__":
-    # Example
-    packet = Packet(1, 2, b"Hello", flags=HeaderFlags.SYN.value)
-    print(packet)
-    packed = packet.to_bytes()
-    print(f"Packed: {packed!r}")
-    unpacked_packet = Packet.from_bytes(packed)
-    print(unpacked_packet)

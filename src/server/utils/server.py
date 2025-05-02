@@ -4,6 +4,7 @@ from asyncio.queues import Queue
 
 from common.config import Config
 from common.flow_manager import FlowManager
+from common.logger import Logger
 from common.protocol.protocol import Protocol
 from common.skt.acceptor_socket import AcceptorSocket
 from common.skt.connection_socket import ConnectionSocket
@@ -12,28 +13,30 @@ from common.skt.connection_socket import ConnectionSocket
 class Server:
     def __init__(self, args: Namespace) -> None:
         self.config = Config(args, server=True)
+        self.logger = Logger(
+            self.config.verbose, self.config.quiet, self.config.log_file
+        )
         self.flow_manager = FlowManager()
-        self.acceptor_skt = AcceptorSocket(self.config.protocol_type, self.flow_manager)
+        self.acceptor_skt = AcceptorSocket(
+            self.config.protocol_type, self.flow_manager, self.logger
+        )
 
     def run(self) -> None:
-        if self.config.verbose:
-            print(
-                "[Server] Starting server with the following parameters:\n"
-                f"[Server] Host: {self.config.host}\n"
-                f"[Server] Port: {self.config.port}\n"
-                f"[Server] Storage folder dir path: {self.config.server_dirpath}\n"
-                f"[Server] Protocol: {self.config.protocol_type}"
-            )
-        if not self.config.quiet:
-            print("[Server] Starting server...")
+        self.logger.debug(
+            "[Server] Starting server with the following parameters:\n"
+            f"[Server] Host: {self.config.host}\n"
+            f"[Server] Port: {self.config.port}\n"
+            f"[Server] Storage folder dir path: {self.config.server_dirpath}\n"
+            f"[Server] Protocol: {self.config.protocol_type}"
+        )
+        self.logger.info("[Server] Starting server...")
 
         loop = asyncio.get_event_loop()
 
         try:
             loop.run_until_complete(self.start_server())
         except KeyboardInterrupt:
-            if not self.config.quiet:
-                print("\n[Server] Stopping server...")
+            self.logger.info("\n[Server] Stopping server...")
 
             tasks = [t for t in asyncio.all_tasks(loop=loop) if not t.done()]
             for task in tasks:
@@ -57,7 +60,9 @@ class Server:
             while True:
                 connection_skt = await incoming_connections.get()
 
-                protocol = Protocol.from_connection(connection_skt, self.config)
+                protocol = Protocol.from_connection(
+                    connection_skt, self.config, self.logger
+                )
                 asyncio.create_task(protocol.handle_connection())
 
         acceptor_task = asyncio.create_task(acceptor_callback())

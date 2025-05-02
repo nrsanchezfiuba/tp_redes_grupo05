@@ -3,30 +3,36 @@ from abc import ABC, abstractmethod
 
 from common.config import Config
 from common.file_ops.file_manager import FileManager, FileOperation
+from common.logger import Logger
 from common.skt.connection_socket import ConnectionSocket
 from common.skt.packet import HeaderFlags, Packet
 
-TIMEOUT_END_CONECTION: float = 5
+TIMEOUT_END_CONECTION: float = 1.0
 INITIAL_RETRIES: int = 5
 
 
 class Protocol(ABC):
-    def __init__(self, socket: ConnectionSocket, config: Config) -> None:
+    def __init__(
+        self, socket: ConnectionSocket, config: Config, logger: Logger
+    ) -> None:
         self.socket = socket
         self.config = config
+        self.logger: Logger = logger
         self.mode: HeaderFlags = HeaderFlags.NONE
 
     @classmethod
-    def from_connection(cls, conn: ConnectionSocket, config: Config) -> "Protocol":
+    def from_connection(
+        cls, conn: ConnectionSocket, config: Config, logger: Logger
+    ) -> "Protocol":
         # In-line import to avoid circular dependency
         from common.protocol.go_back_n import GoBackN
         from common.protocol.stop_and_wait import StopAndWait
 
         match config.protocol_type:
             case HeaderFlags.SW:
-                return StopAndWait(conn, config)
+                return StopAndWait(conn, config, logger)
             case HeaderFlags.GBN:
-                return GoBackN(conn, config)
+                return GoBackN(conn, config, logger)
             case _:
                 raise ValueError("Invalid protocol type")
 
@@ -43,89 +49,92 @@ class Protocol(ABC):
             data=self.config.client_filename.encode(),
             flags=self.config.protocol_type.value | self.config.client_mode.value,
         )
-        retries = 0
-        while retries < INITIAL_RETRIES:
+
+        for _ in range(INITIAL_RETRIES):
             try:
                 await self.socket.send(file_name_pkt)
-                ack_pkt = await asyncio.wait_for(self.socket.recv(), timeout=1.0)
+                ack_pkt = await asyncio.wait_for(
+                    self.socket.recv(), timeout=TIMEOUT_END_CONECTION
+                )
                 if ack_pkt.is_ack():
                     break
-                retries += 1
             except asyncio.TimeoutError:
                 pass
 
             await asyncio.sleep(0.5)
-        if retries == INITIAL_RETRIES:
-            fin_pkt = Packet(
-                flags=HeaderFlags.SW.value
-                | HeaderFlags.FIN.value
-                | self.config.client_mode.value,
-            )
-            await self.socket.send(fin_pkt)
+        else:
+            await self.socket.disconnect()
             raise TimeoutError("Failed to receive ACK for filename packet")
 
         self.mode = self.config.client_mode
-        match self.mode:
-            case HeaderFlags.UPLOAD:
-                file_manager = FileManager(
-                    self.config.client_dst,
-                    self.config.client_filename,
-                    FileOperation.READ,
-                )
-                await self.send_file(file_manager)
-            case HeaderFlags.DOWNLOAD:
-                file_manager = FileManager(
-                    self.config.client_dst,
-                    self.config.client_filename,
-                    FileOperation.WRITE,
-                )
-                await self.recv_file(file_manager)
-            case _:
-                raise ValueError(f"Invalid mode in packet {self.config.client_mode}")
+        file_manager = FileManager(
+            self.config.client_dst,
+            self.config.client_filename,
+            (
+                FileOperation.READ
+                if self.mode == HeaderFlags.UPLOAD
+                else FileOperation.WRITE
+            ),
+        )
+
+        if self.mode == HeaderFlags.UPLOAD:
+            await self.send_file(file_manager)
+        elif self.mode == HeaderFlags.DOWNLOAD:
+            await self.recv_file(file_manager)
+        else:
+            raise ValueError(f"Invalid mode in packet {self.config.client_mode}")
 
     async def handle_connection(self) -> None:
-        file_name_pkt = await self.socket.recv()
-        file_name = file_name_pkt.get_data().decode().strip()
-        self.mode = file_name_pkt.get_mode()
-        if file_name_pkt.get_protocol_type() != self.config.protocol_type:
-            fin_pkt = Packet(
-                flags=self.config.protocol_type.value
-                | HeaderFlags.FIN.value
-                | self.mode.value,
-            )
-            await self.socket.send(fin_pkt)
+        for _ in range(INITIAL_RETRIES):
+            try:
+                file_name_pkt = await asyncio.wait_for(
+                    self.socket.recv(), timeout=TIMEOUT_END_CONECTION
+                )
+
+                if self.socket.is_closed():
+                    return
+
+                if file_name_pkt.get_protocol_type() != self.config.protocol_type:
+                    await self.socket.disconnect()
+                    return
+
+                file_name = file_name_pkt.get_data().decode().strip()
+                self.mode = file_name_pkt.get_mode()
+
+                ack = Packet(
+                    flags=self.config.protocol_type.value
+                    | HeaderFlags.ACK.value
+                    | self.mode.value,
+                )
+                await self.socket.send(ack)
+                break
+            except asyncio.TimeoutError:
+                pass
+
+            await asyncio.sleep(0.5)
+        else:
+            self.logger.error("Failed to receive file name packet")
+            await self.socket.disconnect()
             return
+
         try:
-            match self.mode:
-                case HeaderFlags.UPLOAD:
-                    file_manager = FileManager(
-                        self.config.server_dirpath, file_name, FileOperation.WRITE
-                    )
-                    ack = Packet(
-                        ack_num=file_name_pkt.get_seq_num(),
-                        flags=self.config.protocol_type.value
-                        | HeaderFlags.ACK.value
-                        | self.mode.value,
-                    )
-                    await self.socket.send(ack)
-                    await self.recv_file(file_manager)
-                case HeaderFlags.DOWNLOAD:
-                    file_manager = FileManager(
-                        self.config.server_dirpath, file_name, FileOperation.READ
-                    )
-                    ack = Packet(
-                        ack_num=file_name_pkt.get_seq_num(),
-                        flags=self.config.protocol_type.value
-                        | HeaderFlags.ACK.value
-                        | file_name_pkt.get_mode().value,
-                    )
-                    await self.socket.send(ack)
-                    await self.send_file(file_manager)
-                case _:
-                    raise ValueError("Invalid mode in packet")
-        except FileNotFoundError:
-            print(f"[ERROR] File not found: {file_name}")
-            fin_pkt = Packet(
-                self.config.protocol_type.value | HeaderFlags.FIN.value,
+            file_op = (
+                FileOperation.WRITE
+                if self.mode == HeaderFlags.UPLOAD
+                else FileOperation.READ
             )
-            await self.socket.send(fin_pkt)
+            file_manager = FileManager(
+                self.config.server_dirpath,
+                file_name,
+                file_op,
+            )
+
+            if self.mode == HeaderFlags.UPLOAD:
+                await self.recv_file(file_manager)
+            elif self.mode == HeaderFlags.DOWNLOAD:
+                await self.send_file(file_manager)
+            else:
+                raise ValueError("Invalid mode in packet")
+        except FileNotFoundError:
+            self.logger.error("File not found")
+            await self.socket.disconnect()

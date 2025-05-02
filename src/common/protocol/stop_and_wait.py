@@ -2,27 +2,29 @@ import asyncio
 
 from common.config import Config
 from common.file_ops.file_manager import FileManager
-from common.protocol.protocol import Protocol
+from common.logger import Logger
+from common.protocol.protocol import TIMEOUT_END_CONECTION, Protocol
 from common.skt.connection_socket import ConnectionSocket
 from common.skt.packet import HeaderFlags, Packet
 
 
 class StopAndWait(Protocol):
-    def __init__(self, socket: ConnectionSocket, config: Config):
-        super().__init__(socket, config)
-        self.config = config
+    def __init__(self, socket: ConnectionSocket, config: Config, logger: Logger):
+        super().__init__(socket, config, logger)
         self.ack_num = 0
         self.seq_num = 0
 
     async def recv_file(self, file_manager: FileManager) -> None:
         while True:
             try:
-                packet = await asyncio.wait_for(self.socket.recv(), timeout=5.0)
+                packet = await asyncio.wait_for(
+                    self.socket.recv(), timeout=TIMEOUT_END_CONECTION
+                )
                 if self.socket.is_closed():
                     break
 
                 if packet.get_seq_num() == self.ack_num:
-                    print(f"[DEBUG] Received valid packet seq={self.ack_num}")
+                    self.logger.debug(f"Received valid packet seq={self.ack_num}")
                     file_manager.write_chunk(packet.get_data())
                     ack = Packet(
                         ack_num=self.ack_num,
@@ -63,12 +65,14 @@ class StopAndWait(Protocol):
 
                     await asyncio.sleep(0.5)
                 except TimeoutError as e:
-                    print(f"[DEBUG] Attempt {attempt + 1} failed: {e}")
+                    self.logger.debug(f"Attempt {attempt + 1} failed: {e}")
                     await asyncio.sleep(0.5)
 
-    async def _send_and_wait_ack(self, packet: Packet, timeout: float = 2.0) -> bool:
+    async def _send_and_wait_ack(
+        self, packet: Packet, timeout: float = TIMEOUT_END_CONECTION
+    ) -> bool:
         seq_num = packet.get_seq_num()
-        print(f"[DEBUG] Sending packet seq={seq_num}")
+        self.logger.debug(f"Sending packet seq={seq_num}")
 
         await self.socket.send(packet)
         ack_packet = await asyncio.wait_for(self.socket.recv(), timeout)
