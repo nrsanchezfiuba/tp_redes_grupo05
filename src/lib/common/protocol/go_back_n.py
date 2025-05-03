@@ -33,8 +33,13 @@ class GoBackN(Protocol):
                 elif packet.get_seq_num() == self.ack_num:
                     self.logger.debug(f"Received valid packet seq={self.ack_num}")
                     file_manager.write_chunk(packet.get_data())
-                    await self._send_ack()
+                    await self._send_ack(self.ack_num)
                     self.ack_num = (self.ack_num + 1) % MAX_SEQ_NUM
+                else:
+                    self.logger.debug(
+                        f"Received out-of-order packet seq={packet.get_seq_num()}"
+                    )
+                    await self._send_ack((self.ack_num - 1) % MAX_SEQ_NUM)
 
         except Exception as e:
             self.logger.error(f"Receive failed: {e}")
@@ -57,45 +62,52 @@ class GoBackN(Protocol):
 
                     self.unacked_pkts.append(packet)
 
-                    # Start timer if first packet in window range
                     if self.base_seq_num == self.next_seq_num:
                         self._start_timer()
 
                     self.next_seq_num = (self.next_seq_num + 1) % MAX_SEQ_NUM
                 else:
-                    ack_packet = await self.socket.recv()
-                    if ack_packet.is_ack():
-                        if ack_packet.get_ack_num() == self.base_seq_num:
-                            self.logger.debug(
-                                "Received first ACK from the start of the window"
-                            )
-                            self._stop_timer()
-                            self.unacked_pkts.popleft()
-                            self.base_seq_num = (self.base_seq_num + 1) % MAX_SEQ_NUM
-                        else:
-                            self._start_timer()
-
-            self._start_timer()
+                    await self._process_acks()
 
             while self.unacked_pkts:
-                ack_packet = await self.socket.recv()
-                if ack_packet.is_ack():
-                    if ack_packet.get_ack_num() == self.base_seq_num:
-                        self.logger.debug(
-                            "Received first ACK from the start of the window"
-                        )
-                        self._stop_timer()
-                        self.unacked_pkts.popleft()
-                        self.base_seq_num = (self.base_seq_num + 1) % MAX_SEQ_NUM
-                    else:
-                        self._start_timer()
+                await self._process_acks()
+
         finally:
-            # Cleanup tasks
             self.unacked_pkts.clear()
             self._stop_timer()
             await self.socket.disconnect()
 
+    async def _process_acks(self) -> None:
+        ack_packet = await self.socket.recv()
+        if not ack_packet.is_ack():
+            return
+
+        ack_num = ack_packet.get_ack_num()
+
+        if self._is_within_window(ack_num):
+            while self.unacked_pkts and is_before_or_equal(
+                self.unacked_pkts[0].get_seq_num(), ack_num
+            ):
+                self.unacked_pkts.popleft()
+
+            self.base_seq_num = (ack_num + 1) % MAX_SEQ_NUM
+
+            if self.unacked_pkts:
+                self._start_timer()
+            else:
+                self._stop_timer()
+
+    def _is_within_window(self, seq_num: int) -> bool:
+        wrap_around = (self.base_seq_num + WINDOW_SIZE) % MAX_SEQ_NUM
+        if self.base_seq_num < wrap_around:
+            # If not wrapped around
+            return self.base_seq_num <= seq_num < wrap_around
+        else:
+            # If wrapped around
+            return seq_num >= self.base_seq_num or seq_num < wrap_around
+
     def _start_timer(self) -> None:
+        self._stop_timer()  # Cancel existing timer
         self.timer = asyncio.create_task(self._timeout_handler())
 
     def _stop_timer(self) -> None:
@@ -120,9 +132,15 @@ class GoBackN(Protocol):
         except asyncio.CancelledError:
             self.logger.debug("Timer cancelled and reset")
 
-    async def _send_ack(self) -> None:
+    async def _send_ack(self, ack_num: int) -> None:
         ack = Packet(
-            ack_num=self.ack_num,
+            ack_num=ack_num,
             flags=HeaderFlags.GBN.value | HeaderFlags.ACK.value | self.mode.value,
         )
         await self.socket.send(ack)
+
+
+def is_before_or_equal(seq1: int, seq2: int) -> bool:
+    return (seq1 <= seq2 and (seq2 - seq1) < MAX_SEQ_NUM / 2) or (
+        seq1 > seq2 and (seq1 - seq2) > MAX_SEQ_NUM / 2
+    )
