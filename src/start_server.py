@@ -1,8 +1,10 @@
 from lib.common.args_parser import ArgsParser
+from lib.common.timer import timer
 from lib.server.server import Server
 
 
-def main() -> None:
+@timer
+def start_server() -> None:
     args_parser = ArgsParser(
         description="Server to receive files from a client.",
         usage="server [-h] [-v | -q] [-H ADDR] [-p PORT] [-s STORAGE] [-r PROTOCOL]",
@@ -14,4 +16,4 @@ def main() -> None:
 
 
 if __name__ == "__main__":
-    main()  # pragma: no cover
+    start_server()  # pragma: no cover
