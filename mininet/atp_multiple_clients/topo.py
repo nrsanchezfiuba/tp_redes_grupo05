@@ -54,7 +54,7 @@ class ClientServerTopo(Topo):  # type: ignore
             self.actions[client_host] = client_command
 
 
-def comparte_outputs(config: Dict[str, Any]) -> None:
+def compare_outputs(config: Dict[str, Any]) -> None:
     server_path = config.get("server_path")
     clients = config.get("clients")
     if not clients:
@@ -80,7 +80,7 @@ def run(config_file: str) -> None:
     net.start()
     handle_actions(net, topo_actions)
 
-    comparte_outputs(config)
+    compare_outputs(config)
 
     net.stop()
 
