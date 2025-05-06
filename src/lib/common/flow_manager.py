@@ -12,6 +12,9 @@ class FlowManager:
         """
         self.flow_table: Dict[Tuple[str, int], asyncio.Queue[Packet]] = dict()
 
+    def does_flow_exist(self, flow: Tuple[str, int]):
+        return flow in self.flow_table
+
     def add_flow(self, flow: Tuple[str, int]) -> asyncio.Queue[Packet]:
         """
         Adds a new flow to the flow table and returns the associated queue.
