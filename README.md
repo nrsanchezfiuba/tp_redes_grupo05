@@ -13,6 +13,7 @@ El objetivo de este trabajo práctico es desarrollar una aplicación de red para
 | Santiago Sevitz   | 107520  | ssevitz@fi.uba.ar     |
 | Máximo Utrera     | 109651  | mutrera@fi.uba.ar     |
 
+
 ## Configuración del Proyecto (Primera Vez)
 
 **Aclaración**: para no instalar otras dependencias, debe ejecutarse mediante el entorno como se explica a continuación.
