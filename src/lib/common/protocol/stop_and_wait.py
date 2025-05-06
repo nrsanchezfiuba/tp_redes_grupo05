@@ -19,6 +19,7 @@ class StopAndWait(Protocol):
         self.seq_num = 0
 
     async def recv_file(self, file_manager: FileManager) -> None:
+        await file_manager.open()
         while True:
             try:
                 packet = await asyncio.wait_for(
@@ -29,16 +30,18 @@ class StopAndWait(Protocol):
 
                 if packet.get_seq_num() == self.ack_num:
                     self.logger.debug(f"Received valid packet seq={self.ack_num}")
-                    file_manager.write_chunk(packet.get_data())
+                    await file_manager.write_chunk(packet.get_data())
                     self.ack_num = 1 - self.ack_num
 
                 await self._send_ack()
             except TimeoutError:
                 continue
+        await file_manager.close()
 
     async def send_file(self, file_manager: FileManager) -> None:
+        await file_manager.open()
         while True:
-            block = file_manager.read_chunk()
+            block = await file_manager.read_chunk()
             if not block:
                 await self.socket.disconnect()
                 break
@@ -50,11 +53,12 @@ class StopAndWait(Protocol):
                     break
                 except TimeoutError as e:
                     self.logger.debug(f"Attempt {attempt + 1} failed: {e}")
-                    await asyncio.sleep(0.5)
+                    await asyncio.sleep(TIMEOUT_INTERVAL)
             else:
                 self.logger.error("Failed to receive ACK for packet")
                 await self.socket.disconnect()
                 break
+        await file_manager.close()
 
     async def _send_ack(self) -> None:
         ack = Packet(

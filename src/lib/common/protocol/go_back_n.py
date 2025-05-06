@@ -10,7 +10,7 @@ from lib.common.protocol.protocol import TIMEOUT_INTERVAL, Protocol
 from lib.common.skt.connection_socket import ConnectionSocket
 from lib.common.skt.packet import MAX_SEQ_NUM, HeaderFlags, Packet
 
-WINDOW_SIZE: int = 5
+WINDOW_SIZE: int = 8
 
 
 class GoBackN(Protocol):
@@ -25,6 +25,7 @@ class GoBackN(Protocol):
         self.timer: Task[Any] | None = None
 
     async def recv_file(self, file_manager: FileManager) -> None:
+        await file_manager.open()
         try:
             while True:
                 packet = await self.socket.recv()
@@ -32,7 +33,7 @@ class GoBackN(Protocol):
                     break
                 elif packet.get_seq_num() == self.ack_num:
                     self.logger.debug(f"Received valid packet seq={self.ack_num}")
-                    file_manager.write_chunk(packet.get_data())
+                    await file_manager.write_chunk(packet.get_data())
                     await self._send_ack(self.ack_num)
                     self.ack_num = (self.ack_num + 1) % MAX_SEQ_NUM
                 else:
@@ -44,12 +45,15 @@ class GoBackN(Protocol):
         except Exception as e:
             self.logger.error(f"Receive failed: {e}")
             raise
+        finally:
+            await file_manager.close()
 
     async def send_file(self, file_manager: FileManager) -> None:
+        await file_manager.open()
         try:
             while True:
                 if (self.next_seq_num - self.base_seq_num) % MAX_SEQ_NUM < WINDOW_SIZE:
-                    block = file_manager.read_chunk()
+                    block = await file_manager.read_chunk()
                     if not block:
                         break
 
@@ -73,6 +77,7 @@ class GoBackN(Protocol):
                 await self._process_acks()
 
         finally:
+            await file_manager.close()
             self.unacked_pkts.clear()
             self._stop_timer()
             await self.socket.disconnect()

@@ -106,10 +106,10 @@ def verify_config(config: Dict[str, Any]) -> None:
     for client in config["clients"]:
         if not os.path.exists(client["path"]):
             if client["action"] == "upload":
-                create_dirs_and_files(client["path"], client["file"], file_size_kb=10)
+                create_dirs_and_files(client["path"], client["file"], file_size_kb=5120)
             elif client["action"] == "download":
                 create_dirs_and_files(
-                    config["server_path"], client["file"], file_size_kb=10
+                    config["server_path"], client["file"], file_size_kb=5120
                 )
 
 
