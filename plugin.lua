@@ -1,17 +1,17 @@
-local my_protocol = Proto("tp1_redes", "Protocolo TP1 Redes")
+local my_protocol = Proto("apt", "ATP File Transfer Protocol")
 
 local conversation = {}
 
 local fields = {
-    ProtoField.uint8("tp1_redes.flags.prt", "PRT Flag", base.DEC, nil, 0xC000),
-    ProtoField.bool("tp1_redes.flags.mod", "MOD Flag", 16, nil, 0x2000),
-    ProtoField.bool("tp1_redes.flags.syn", "SYN Flag", 16, nil, 0x1000),
-    ProtoField.bool("tp1_redes.flags.fin", "FIN Flag", 16, nil, 0x0800),
-    ProtoField.bool("tp1_redes.flags.ack", "ACK Flag", 16, nil, 0x0400),
-    ProtoField.uint16("tp1_redes.length", "Length", base.DEC, nil, 0x03FF),
-    ProtoField.uint16("tp1_redes.seq_num", "Sequence Number", base.DEC),
-    ProtoField.uint16("tp1_redes.ack_num", "ACK Number", base.DEC),
-    ProtoField.string("tp1_redes.data", "Data", base.STRING)
+    ProtoField.uint8("apt.flags.prt", "PRT Flag", base.DEC, nil, 0xC000),
+    ProtoField.bool("apt.flags.mod", "MOD Flag", 16, nil, 0x2000),
+    ProtoField.bool("apt.flags.syn", "SYN Flag", 16, nil, 0x1000),
+    ProtoField.bool("apt.flags.fin", "FIN Flag", 16, nil, 0x0800),
+    ProtoField.bool("apt.flags.ack", "ACK Flag", 16, nil, 0x0400),
+    ProtoField.uint16("apt.length", "Length", base.DEC, nil, 0x03FF),
+    ProtoField.uint16("apt.seq_num", "Sequence Number", base.DEC),
+    ProtoField.uint16("apt.ack_num", "ACK Number", base.DEC),
+    ProtoField.string("apt.data", "Data", base.STRING)
 }
 
 my_protocol.fields = fields
@@ -46,9 +46,9 @@ function my_protocol.dissector(tvbuf, pinfo, tree)
     flags_subtree:add(fields[4], tvbuf(0, 2)) -- FIN
     flags_subtree:add(fields[5], tvbuf(0, 2)) -- ACK
 
-    subtree:add(fields[6], tvbuf(0, 2))      -- Length
-    subtree:add(fields[7], tvbuf(2, 2))      -- Seq Num
-    subtree:add(fields[8], tvbuf(4, 2))      -- ACK Num
+    subtree:add(fields[6], tvbuf(0, 2))       -- Length
+    subtree:add(fields[7], tvbuf(2, 2))       -- Seq Num
+    subtree:add(fields[8], tvbuf(4, 2))       -- ACK Num
 
     if data_length > 0 then
         local data = tvbuf(6, data_length)
