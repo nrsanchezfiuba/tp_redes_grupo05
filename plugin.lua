@@ -1,17 +1,17 @@
-local my_protocol = Proto("apt", "ATP File Transfer Protocol")
+local my_protocol = Proto("fiuba_atp", "ATP File Transfer Protocol")
 
 local conversation = {}
 
 local fields = {
-    ProtoField.uint8("apt.flags.prt", "PRT Flag", base.DEC, nil, 0xC000),
-    ProtoField.bool("apt.flags.mod", "MOD Flag", 16, nil, 0x2000),
-    ProtoField.bool("apt.flags.syn", "SYN Flag", 16, nil, 0x1000),
-    ProtoField.bool("apt.flags.fin", "FIN Flag", 16, nil, 0x0800),
-    ProtoField.bool("apt.flags.ack", "ACK Flag", 16, nil, 0x0400),
-    ProtoField.uint16("apt.length", "Length", base.DEC, nil, 0x03FF),
-    ProtoField.uint16("apt.seq_num", "Sequence Number", base.DEC),
-    ProtoField.uint16("apt.ack_num", "ACK Number", base.DEC),
-    ProtoField.string("apt.data", "Data", base.STRING)
+    ProtoField.uint8("fiuba_atp.flags.prt", "PRT Flag", base.DEC, nil, 0xC000),
+    ProtoField.bool("fiuba_atp.flags.mod", "MOD Flag", 16, nil, 0x2000),
+    ProtoField.bool("fiuba_atp.flags.syn", "SYN Flag", 16, nil, 0x1000),
+    ProtoField.bool("fiuba_atp.flags.fin", "FIN Flag", 16, nil, 0x0800),
+    ProtoField.bool("fiuba_atp.flags.ack", "ACK Flag", 16, nil, 0x0400),
+    ProtoField.uint16("fiuba_atp.length", "Length", base.DEC, nil, 0x03FF),
+    ProtoField.uint16("fiuba_atp.seq_num", "Sequence Number", base.DEC),
+    ProtoField.uint16("fiuba_atp.ack_num", "ACK Number", base.DEC),
+    ProtoField.string("fiuba_atp.data", "Data", base.STRING)
 }
 
 my_protocol.fields = fields
