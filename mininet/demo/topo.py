@@ -24,7 +24,6 @@ class ClientServerTopo(Topo):  # type: ignore
         super().__init__(**opts)
 
     def build(self, **_opts: Any) -> None:
-
         # Calculate loss percentage divided by the number of clients
         if self.loss is None or not self.clients:
             raise ValueError(
@@ -41,7 +40,7 @@ class ClientServerTopo(Topo):  # type: ignore
         for i, _ in enumerate(self.clients, start=2):
             client_name = f"h{i}"
             client_host = self.addHost(client_name)
-            self.addLink(client_host, s1, cls=TCLink, loss=loss)
+            self.addLink(client_host, s1)
 
 
 def create_file(file_path: str, size_kb: int = 10) -> None:
