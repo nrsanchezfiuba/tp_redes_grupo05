@@ -5,18 +5,18 @@
     "clients": [
         {
             "action": "upload",
-            "file": "file1.txt",
-            "path": "client1"
+            "file": "file_one",
+            "path": "client_one"
         },
         {
             "action": "upload",
-            "file": "file2.txt",
-            "path": "client2"
+            "file": "file_two",
+            "path": "client_two"
         },
         {
             "action": "download",
-            "file": "file_storage.txt",
-            "path": "client3"
+            "file": "file_storage",
+            "path": "client_three"
         }
     ]
 }
