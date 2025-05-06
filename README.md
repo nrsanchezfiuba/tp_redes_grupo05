@@ -5,19 +5,42 @@ El objetivo de este trabajo práctico es desarrollar una aplicación de red para
 
 ## Integrantes del Grupo
 
-- ADD LATER
+| Nombre            | Legajo  | Email                 |
+|-------------------|---------|-----------------------|
+| Agustín Barbalase | 109071  | abarbalase@fi.uba.ar  |
+| Felipe D'alto     | 110000  | fedalto@fi.uba.ar     |
+| Nicolás Sanchez   | 98792   | nrsanchez@fi.uba.ar   |
+| Santiago Sevitz   | 107520  | ssevitz@fi.uba.ar     |
+| Máximo Utrera     | 109651  | mutrera@fi.uba.ar     |
 
 ## Configuración del Proyecto (Primera Vez)
+
+**Aclaración**: para no instalar otras dependencias, debe ejecutarse mediante el entorno como se explica a continuación.
+
+En caso de requerir permisos para ejecutar xterm, ejecutar el siguiente comando:
+
+```bash
+xhost +si:localuser:root
+```
 
 Para configurar el proyecto por primera vez, ejecute el siguiente comando:
 ```bash
 ./run_mininet.sh build
 ```
+
 ## Inicio del Proyecto
 
 Para iniciar el proyecto, utilice el siguiente comando:
 ```bash
 ./run_mininet.sh run
+```
+
+## Activación de entorno
+
+Para activar el entorno, utilice el siguiente comando:
+
+```bash
+source .venv/bin/activate
 ```
 
 ## Instalar plugin de Wireshark
@@ -58,20 +81,11 @@ Si encuentra inconvenientes al ejecutar el ejecutable `./run_mininet.sh`, intent
 ## Requerimientos
 - Docker (versión 20.10 o superior)
 
-## Testing
-
-### Preparación del Entorno
-1. Active el entorno virtual:
-    ```bash
-    source .venv/bin/activate
-    ```
-
-### Ejecución de Pruebas
-2. Ejecute el script de pruebas:
-    ```bash
-    ./run_tests.sh
-    ```
-
 ### Notas
 - Asegúrese de que todas las dependencias estén instaladas antes de ejecutar las pruebas.
 - Si encuentra problemas, verifique los permisos o la configuración del entorno virtual.
+
+
+## Anexo: Fragmentación
+
+- [Fragmentación](./docs/fragmentation.md)
