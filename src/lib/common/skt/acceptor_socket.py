@@ -57,6 +57,8 @@ class AcceptorSocket:
                     sender, q, self.protocol, self.logger
                 )
             elif pkt.is_fin():
+                if not self.flow_manager.does_flow_exist(sender):
+                    continue
                 await self.flow_manager.demultiplex_packet(sender, pkt)
                 self.flow_manager.remove_flow(sender)
             else:
