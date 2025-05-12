@@ -27,7 +27,6 @@ class FileManager:
     def write_chunk(self, content: bytes) -> None:
         self.file.write(content)
         self.file.flush()
-        print(f"Written {len(content)} bytes to {self.filepath}")
 
     def _validate_file(self, dir_path: str, file_name: str) -> str:
         filepath = os.path.join(dir_path, file_name)

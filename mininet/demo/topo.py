@@ -94,7 +94,7 @@ def run(config_file: str) -> None:
 
 def handle_actions(net: Mininet, config) -> None:  # type: ignore
     server = net.get("h1")
-    server_command = f'xterm -hold -e "PYTHONPATH=src python3 ./src/start_server.py -v -H 10.0.0.1 -p {SERVER_PORT} -s {config["server_path"]} -r {config["recovery_protocol"]} --log-file server.log > prints.log" &'
+    server_command = f'xterm -hold -e "PYTHONPATH=src python3 ./src/start_server.py -v -H 10.0.0.1 -p {SERVER_PORT} -s {config["server_path"]} -r {config["recovery_protocol"]} --log-file server.log" &'
     server.cmd(server_command)
 
     time.sleep(0.5)
