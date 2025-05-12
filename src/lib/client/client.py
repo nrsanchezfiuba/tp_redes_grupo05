@@ -30,8 +30,10 @@ class Client:
 
         try:
             loop.run_until_complete(self.start_client())
-        except KeyboardInterrupt:
-            self.logger.info("\n[Client] Stopping client...")
+        except (KeyboardInterrupt, TimeoutError) as e:
+            if str(e) != "":
+                self.logger.error(str(e))
+            self.logger.info("[Client] Stopping client...")
 
             tasks = [t for t in asyncio.all_tasks(loop=loop) if not t.done()]
             for task in tasks:

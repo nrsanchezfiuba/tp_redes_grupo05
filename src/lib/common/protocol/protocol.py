@@ -7,8 +7,8 @@ from lib.common.logger import Logger
 from lib.common.skt.connection_socket import ConnectionSocket
 from lib.common.skt.packet import HeaderFlags, Packet
 
-TIMEOUT_INTERVAL: float = 1.0
-RETRANSMISSION_RETRIES: int = 5
+TIMEOUT_INTERVAL: float = 0.015
+RETRANSMISSION_RETRIES: int = 10
 
 
 class Protocol(ABC):

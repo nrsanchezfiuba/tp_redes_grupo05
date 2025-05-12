@@ -4,7 +4,6 @@ from lib.common.config import Config
 from lib.common.file_ops.file_manager import FileManager
 from lib.common.logger import Logger
 from lib.common.protocol.protocol import (
-    RETRANSMISSION_RETRIES,
     TIMEOUT_INTERVAL,
     Protocol,
 )
@@ -15,8 +14,8 @@ from lib.common.skt.packet import HeaderFlags, Packet
 class StopAndWait(Protocol):
     def __init__(self, socket: ConnectionSocket, config: Config, logger: Logger):
         super().__init__(socket, config, logger)
-        self.ack_num = 0
-        self.seq_num = 0
+        self.ack_num = 1
+        self.seq_num = 1
 
     async def recv_file(self, file_manager: FileManager) -> None:
         while True:
@@ -40,21 +39,18 @@ class StopAndWait(Protocol):
         while True:
             block = file_manager.read_chunk()
             if not block:
-                await self.socket.disconnect()
                 break
 
-            for attempt in range(RETRANSMISSION_RETRIES):
+            while True:
                 try:
                     await self._send_data(block)
-                    self.seq_num = 1 - self.seq_num
                     break
-                except TimeoutError as e:
-                    self.logger.debug(f"Attempt {attempt + 1} failed: {e}")
-                    await asyncio.sleep(0.5)
-            else:
-                self.logger.error("Failed to receive ACK for packet")
-                await self.socket.disconnect()
-                break
+                except TimeoutError:
+                    continue
+
+            self.seq_num = 1 - self.seq_num
+
+        await self.socket.disconnect()
 
     async def _send_ack(self) -> None:
         ack = Packet(
@@ -74,5 +70,7 @@ class StopAndWait(Protocol):
         ack_packet = await asyncio.wait_for(
             self.socket.recv(), timeout=TIMEOUT_INTERVAL
         )
-        if not ack_packet.is_ack():
+        if not ack_packet.is_ack() or (
+            ack_packet.is_ack() and ack_packet.get_ack_num() == self.seq_num
+        ):
             raise TimeoutError("Failed to receive ACK for packet")

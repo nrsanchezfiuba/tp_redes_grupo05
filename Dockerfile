@@ -25,6 +25,7 @@ COPY ./mininet/ENTRYPOINT.sh /
 RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates \
     curl \
+    tree \
     dnsutils \
     ifupdown \
     iproute2 \
@@ -51,6 +52,7 @@ RUN uv sync
 COPY . /root
 
 ENV PYTHONPATH=src
+ENV SHELL=/bin/bash
 
 EXPOSE 6633 6653 6640
 

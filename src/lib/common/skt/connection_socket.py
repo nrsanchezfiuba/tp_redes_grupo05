@@ -5,8 +5,8 @@ from lib.common.logger import Logger
 from lib.common.skt.packet import HeaderFlags, Packet
 from lib.common.skt.udp_socket import UDPSocket
 
-HANDSHAKE_TIMEOUT_INTERVAL: float = 1.5
-HANDSHAKE_RETRIES: int = 5
+HANDSHAKE_TIMEOUT_INTERVAL: float = 0.5
+HANDSHAKE_RETRIES: int = 10
 
 
 class ConnectionSocket:

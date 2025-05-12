@@ -10,7 +10,7 @@ from lib.common.protocol.protocol import TIMEOUT_INTERVAL, Protocol
 from lib.common.skt.connection_socket import ConnectionSocket
 from lib.common.skt.packet import MAX_SEQ_NUM, HeaderFlags, Packet
 
-WINDOW_SIZE: int = 5
+WINDOW_SIZE: int = 8
 
 
 class GoBackN(Protocol):
@@ -18,9 +18,9 @@ class GoBackN(Protocol):
         self, socket: ConnectionSocket, config: Config, logger: Logger
     ) -> None:
         super().__init__(socket, config, logger)
-        self.ack_num = 0
-        self.base_seq_num = 0
-        self.next_seq_num = 0
+        self.ack_num = 1
+        self.base_seq_num = 1
+        self.next_seq_num = 1
         self.unacked_pkts: deque[Packet] = deque()
         self.timer: Task[Any] | None = None
 
@@ -35,6 +35,9 @@ class GoBackN(Protocol):
                     file_manager.write_chunk(packet.get_data())
                     await self._send_ack(self.ack_num)
                     self.ack_num = (self.ack_num + 1) % MAX_SEQ_NUM
+                elif packet.get_seq_num() == 0:
+                    # ACK for filename packet in case it was lost and resent
+                    await self._send_ack(0)
                 else:
                     self.logger.debug(
                         f"Received out-of-order packet seq={packet.get_seq_num()}"
@@ -72,6 +75,9 @@ class GoBackN(Protocol):
             while self.unacked_pkts:
                 await self._process_acks()
 
+        except Exception as e:
+            self.logger.error(f"Send failed: {e}")
+            raise
         finally:
             self.unacked_pkts.clear()
             self._stop_timer()
@@ -88,6 +94,10 @@ class GoBackN(Protocol):
             while self.unacked_pkts and is_before_or_equal(
                 self.unacked_pkts[0].get_seq_num(), ack_num
             ):
+                self.logger.debug(f"[ACK] Received ACK for packet ack={ack_num}")
+                self.logger.debug(
+                    f"Removing packet seq={self.unacked_pkts[0].get_seq_num()}"
+                )
                 self.unacked_pkts.popleft()
 
             self.base_seq_num = (ack_num + 1) % MAX_SEQ_NUM

@@ -45,6 +45,11 @@ class AcceptorSocket:
                 await self._send_fin(sender)
             elif pkt.is_syn():
                 self.logger.debug(f"[AcceptorSocket] SYN packet received from {sender}")
+                if self.flow_manager.does_flow_exist(sender):
+                    # Resend syn-ack if packet was lost
+                    await self._send_syn_ack(sender)
+                    continue
+
                 # Hanshake the new connection
                 q: asyncio.Queue[Packet] = self.flow_manager.add_flow(sender)
                 await self._send_syn_ack(sender)
@@ -52,6 +57,8 @@ class AcceptorSocket:
                     sender, q, self.protocol, self.logger
                 )
             elif pkt.is_fin():
+                if not self.flow_manager.does_flow_exist(sender):
+                    continue
                 await self.flow_manager.demultiplex_packet(sender, pkt)
                 self.flow_manager.remove_flow(sender)
             else:
