@@ -1,0 +1,12 @@
+{
+    "recovery_protocol": "GBN",
+    "loss_percentage": 10,
+    "server_path": "storage",
+    "clients": [
+        {
+            "action": "upload",
+            "file": "file_one",
+            "path": "client_one"
+        }
+    ]
+}

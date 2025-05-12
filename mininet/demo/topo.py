@@ -71,7 +71,9 @@ def compare_outputs(config: Dict[str, Any]) -> None:
         compare_file = client.get("file")
         compare_command = f"./check_hash.sh ./{server_path}/{compare_file} ./{client_path}/{compare_file}"
         result = os.popen(compare_command).read()
-        print(f"File: {compare_file}: {result.strip()}")
+        print(
+            f"Comparing {server_path}/{compare_file} & {client_path}/{compare_file}: {result.strip()}"
+        )
 
 
 def run(config_file: str) -> None:
@@ -87,17 +89,18 @@ def run(config_file: str) -> None:
     CLI(net)
 
     net.stop()
+    compare_outputs(config)
 
 
 def handle_actions(net: Mininet, config) -> None:  # type: ignore
     server = net.get("h1")
-    server_command = f'xterm -hold -e "PYTHONPATH=src python3 ./src/start_server.py -v -H 10.0.0.1 -p {SERVER_PORT} -s {config["server_path"]} -r {config["recovery_protocol"]}" &'
+    server_command = f'xterm -hold -e "PYTHONPATH=src python3 ./src/start_server.py -v -H 10.0.0.1 -p {SERVER_PORT} -s {config["server_path"]} -r {config["recovery_protocol"]} --log-file server.log > prints.log" &'
     server.cmd(server_command)
 
     time.sleep(0.5)
 
     for i, client in enumerate(config["clients"], start=2):
-        client_command = f'xterm -hold -e "PYTHONPATH=src python3 ./src/{client["action"]}.py -v -H 10.0.0.1 -p {SERVER_PORT} -n {client["file"]} -d {client["path"]} -r {config["recovery_protocol"]}" &'
+        client_command = f'xterm -hold -e "PYTHONPATH=src python3 ./src/{client["action"]}.py -v -H 10.0.0.1 -p {SERVER_PORT} -n {client["file"]} -d {client["path"]} -r {config["recovery_protocol"]} --log-file client_{i}.log" &'
         client_host = net.get(f"h{i}")
         client_host.cmd(client_command)
 

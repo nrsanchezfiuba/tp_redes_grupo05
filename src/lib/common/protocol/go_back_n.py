@@ -18,14 +18,13 @@ class GoBackN(Protocol):
         self, socket: ConnectionSocket, config: Config, logger: Logger
     ) -> None:
         super().__init__(socket, config, logger)
-        self.ack_num = 0
-        self.base_seq_num = 0
-        self.next_seq_num = 0
+        self.ack_num = 1
+        self.base_seq_num = 1
+        self.next_seq_num = 1
         self.unacked_pkts: deque[Packet] = deque()
         self.timer: Task[Any] | None = None
 
     async def recv_file(self, file_manager: FileManager) -> None:
-        await file_manager.open()
         try:
             while True:
                 packet = await self.socket.recv()
@@ -33,9 +32,12 @@ class GoBackN(Protocol):
                     break
                 elif packet.get_seq_num() == self.ack_num:
                     self.logger.debug(f"Received valid packet seq={self.ack_num}")
-                    await file_manager.write_chunk(packet.get_data())
+                    file_manager.write_chunk(packet.get_data())
                     await self._send_ack(self.ack_num)
                     self.ack_num = (self.ack_num + 1) % MAX_SEQ_NUM
+                elif packet.get_seq_num() == 0:
+                    # ACK for filename packet in case it was lost and resent
+                    await self._send_ack(0)
                 else:
                     self.logger.debug(
                         f"Received out-of-order packet seq={packet.get_seq_num()}"
@@ -45,15 +47,12 @@ class GoBackN(Protocol):
         except Exception as e:
             self.logger.error(f"Receive failed: {e}")
             raise
-        finally:
-            await file_manager.close()
 
     async def send_file(self, file_manager: FileManager) -> None:
-        await file_manager.open()
         try:
             while True:
                 if (self.next_seq_num - self.base_seq_num) % MAX_SEQ_NUM < WINDOW_SIZE:
-                    block = await file_manager.read_chunk()
+                    block = file_manager.read_chunk()
                     if not block:
                         break
 
@@ -76,8 +75,10 @@ class GoBackN(Protocol):
             while self.unacked_pkts:
                 await self._process_acks()
 
+        except Exception as e:
+            self.logger.error(f"Send failed: {e}")
+            raise
         finally:
-            await file_manager.close()
             self.unacked_pkts.clear()
             self._stop_timer()
             await self.socket.disconnect()
@@ -93,6 +94,10 @@ class GoBackN(Protocol):
             while self.unacked_pkts and is_before_or_equal(
                 self.unacked_pkts[0].get_seq_num(), ack_num
             ):
+                self.logger.debug(f"[ACK] Received ACK for packet ack={ack_num}")
+                self.logger.debug(
+                    f"Removing packet seq={self.unacked_pkts[0].get_seq_num()}"
+                )
                 self.unacked_pkts.popleft()
 
             self.base_seq_num = (ack_num + 1) % MAX_SEQ_NUM

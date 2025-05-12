@@ -16,7 +16,7 @@ class UDPSocket:
 
     async def recv_all(self) -> Tuple[bytes, Tuple[str, int]]:
         loop = asyncio.get_running_loop()
-        data, addr = await loop.sock_recvfrom(self.sock, 2048)
+        data, addr = await loop.sock_recvfrom(self.sock, 1006)
         return data, addr
 
     async def send_all(self, data: bytes, addr: Tuple[str, int]) -> None:
