@@ -25,14 +25,14 @@ xhost +si:localuser:root
 
 Para configurar el proyecto por primera vez, ejecute el siguiente comando:
 ```bash
-./run_mininet.sh build
+./mn.sh build
 ```
 
 ## Inicio del Proyecto
 
 Para iniciar el proyecto, utilice el siguiente comando:
 ```bash
-./run_mininet.sh run
+./mn.sh run
 ```
 
 ## Activación de entorno
