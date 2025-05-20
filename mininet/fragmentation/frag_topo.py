@@ -32,7 +32,7 @@ class FragmentationTopo(Topo):  # type: ignore
             intfName2="r1-eth2",
             params2={"ip": "10.0.0.5/30"},
             cls=TCLink,
-            loss=10,
+            loss=5,
         )
 
         h1 = self.addHost("h1", ip="10.0.0.2/30", defaultRoute="via 10.0.0.1")
