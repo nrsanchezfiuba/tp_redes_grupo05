@@ -41,12 +41,12 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     xterm \
     && rm -rf /var/lib/apt/lists/* \
     && touch /etc/network/interfaces \
-    && chmod +x /ENTRYPOINT.sh \
-    && curl -LsSf https://astral.sh/uv/install.sh | sh
+    && curl -LsSf https://astral.sh/uv/install.sh | sh \
+    && chmod +x /ENTRYPOINT.sh
 
 COPY uv.lock pyproject.toml* ./
 
-ENV PATH="/root/.local/bin:${PATH}"
+ENV PATH="/root/.cargo/bin:/root/.local/bin:${PATH}"
 RUN uv sync
 
 COPY . /root
