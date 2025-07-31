@@ -1,4 +1,4 @@
-# tp_redes_grupo05
+# RDT Protocol - over UDP (from scratch)
 
 ## Descripción
 El objetivo de este trabajo práctico es desarrollar una aplicación de red para comprender la comunicación entre procesos y el modelo de servicio de la capa de transporte hacia la capa de aplicación. Además, se aprenderá a usar la interfaz de sockets y los principios básicos de la transferencia de datos confiable (RDT).
