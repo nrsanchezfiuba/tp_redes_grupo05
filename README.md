@@ -5,13 +5,13 @@ El objetivo de este trabajo práctico es desarrollar una aplicación de red para
 
 ## Integrantes del Grupo
 
-| Nombre            | Legajo  | Email                 |
-|-------------------|---------|-----------------------|
-| Agustín Barbalase | 109071  | abarbalase@fi.uba.ar  |
-| Felipe D'alto     | 110000  | fedalto@fi.uba.ar     |
-| Nicolás Sanchez   | 98792   | nrsanchez@fi.uba.ar   |
-| Santiago Sevitz   | 107520  | ssevitz@fi.uba.ar     |
-| Máximo Utrera     | 109651  | mutrera@fi.uba.ar     |
+| Nombre            | Email                 |
+|-------------------|-----------------------|
+| Agustín Barbalase | abarbalase@fi.uba.ar  |
+| Felipe D'alto     | fedalto@fi.uba.ar     |
+| Nicolás Sanchez   | nrsanchez@fi.uba.ar   |
+| Santiago Sevitz   | ssevitz@fi.uba.ar     |
+| Máximo Utrera     |  mutrera@fi.uba.ar     |
 
 ## Configuración del Proyecto (Primera Vez)
 
