@@ -1,0 +1,32 @@
+{
+  "recovery_protocol": "SW",
+  "loss_percentage": 0,
+  "server_path": "storage",
+  "clients": [
+      {
+          "action": "upload",
+          "file": "file_one",
+          "path": "client_one"
+      },
+      {
+          "action": "upload",
+          "file": "file_two",
+          "path": "client_two"
+      },
+      {
+          "action": "download",
+          "file": "file_storage",
+          "path": "client_three"
+      },
+      {
+          "action": "download",
+          "file": "file_storage",
+          "path": "client_four"
+      },
+      {
+          "action": "download",
+          "file": "file_storage",
+          "path": "client_five"
+      }
+  ]
+}

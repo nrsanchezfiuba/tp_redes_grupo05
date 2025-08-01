@@ -1,0 +1,8 @@
+.coverage
+coverage.xml
+.bash_history
+.mininet_history
+__pycache__/
+**/__pycache__/
+storage/
+*.txt
